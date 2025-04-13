@@ -89,7 +89,6 @@ blueprint:
           selector:
             entity:
               filter:
-              - integration: SpotifyPlus
                 domain:
                 - media_player
               multiple: false
