@@ -1,5 +1,5 @@
 blueprint:
-  name: LLM Script for Spotify Plus voice requests
+  name: Voice - Spotify Plus - Full LLM script
   source_url: https://github.com/your-username/spotify-plus-voice/blob/main/spotify-plus-llm-voice-script.yaml
   description: '![Image](https://raw.githubusercontent.com/hokiebrian/spotify_plus/main/custom_components/spotify_plus/icon.png)
 
