@@ -1,8 +1,9 @@
 blueprint:
-  name: LLM Script for Spotify Plus voice requests
-  source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
-  description: '
-    # Creates a script which will allow voice requests for Spotify Plus
+  name: LLM Script for Music Assistant voice requests
+  source_url: https://github.com/music-assistant/voice-support/blob/main/llm-script-blueprint/llm_voice_script.yaml
+  description: '![Image](https://github.com/music-assistant/voice-support/blob/main/assets/music-assistant.png?raw=true)
+
+    # Creates a script which will allow voice requests for Music Assistant
 
     * No changes are required for any of the settings below for this script to work,
     but your specific LLM integration may need some fine-tuning. To do that, adjust
@@ -13,18 +14,18 @@ blueprint:
     * **Make sure to give the script a clear description.** An example can be found
     below.
 
-    * It is possible to add additional actions to be performed after the Spotify Plus
+    * It is possible to add additional actions to be performed after the Music Assistant
     play media action. There are several variables available which are described below.
 
 
     ## Example for script description
 
-    `This script is used to play music from Spotify based on a voice request. The tool takes the
-    following arguments: media_type, artist, track, media_id, shuffle, area. media_id,
+    `This script is used to play music based on a voice request. The tool takes the
+    following arguments: media_type, artist, album, media_id, radio_mode, area. media_id,
     media_type are always required and must always be supplied as arguments to this
-    tool. An area or Spotify Plus media player can optionally be provided in the
+    tool. An area or Music Assistant media player can optionally be provided in the
     voice request as well. Use the parameters as described in the description of each
-    parameter. Use this tool whenever the user requests to play music from Spotify.`
+    parameter. Use this tool whenever the user requests to play music.`
 
     ## Available variables for additional actions
 
@@ -33,16 +34,17 @@ blueprint:
     |---|---|
 
     |`media_id`|The general description of the media, can be a song name, radio station,
-    album name, etc. For Spotify URIs or IDs, this will be the full URI/ID.|
+    album name, etc. If there are multiple values (e.g. 5 song titles) they will be
+    separated by a semicolon (`;`)|
 
     |`media_type`|Will be one of the following: `"track"`, `"artist"`, `"album"`,
-    `"playlist"`, `"podcast"`, `"radio"`|
+    `"playlist"`, `"radio"`|
 
     |`artist`|The artist requested in the voice command. Will be empty in case the
     artist is not relevant or when there are multiple artists requested|
 
-    |`track`|The track/song requested in the voice command, will be empty in case the track
-    is not relevant or when multiple tracks are requested|
+    |`album`|The album requested in the voice command, will be empty in case the album
+    is not relevant or when multiple albums are requested|
 
     |`media_description`|The description used in the voice request to describe the
     media. For example if the voice request was "Play the best songs from Queen in
@@ -52,7 +54,7 @@ blueprint:
     The variable will undefined in case there was no area information, in case it
     is defined it will be a list of area_ids|
 
-    |`media_player`|The Spotify Plus media player(s) determined by the LLM on which
+    |`media_player`|The Music Assistant media player(s) determined by the LLM on which
     the request will be played. The variable will be undefined if there was no media
     player provided in the request. If it is defined, it should be a list of entity_ids,
     but it could be the LLM provided names instead.
@@ -69,19 +71,19 @@ blueprint:
     It will be set based on whether or not the request mentions wanting to shuffle the music.
     The value will either be true or false.|'
   domain: script
-  author: Charghoul
+  author: TheFes
   homeassistant:
     min_version: 2024.6.0
   input:
-    spotify_plus_settings:
-      name: Settings for Spotify Plus playback
-      icon: mdi:spotify
-      description: You can use these settings to configure how Spotify Plus playback
+    music_assistant_settings:
+      name: Settings for Music Assistant playback
+      icon: mdi:music
+      description: You can use these settings to configure how Music Assistant playback
         is handled.
       input:
         default_player:
           name: Default Player
-          description: 'The default Spotify Plus player which will be used if it
+          description: 'The default Music Assistant player which will be used if it
             is not clear from the request in which area or on which player the request
             should be played.
 
@@ -89,27 +91,41 @@ blueprint:
           selector:
             entity:
               filter:
-              - integration: SpotifyPlus
+              - integration: music_assistant
                 domain:
                 - media_player
               multiple: false
           default:
-        search_limit:
-          name: Search Limit
-          description: 'The maximum number of search results to return when searching
-            for tracks, artists, albums, playlists or shows.'
+        play_continuously:
+          name: Radio Mode
+          description: 'Determines if the "radio_mode" setting should be set for the
+            play media action.
+
+            When set to "Use player settings" it will use the "Don''t stop the music"
+            setting on the Music Assistant Player.
+
+            When set to "Always" the player will continuously add new songs to the
+            playlist.
+
+            When set to "Never" the player will stop playing after the songs selected
+            by the LLM are finished.
+
+            '
           selector:
-            number:
-              min: 1
-              max: 50
-              mode: slider
-              step: 1
-          default: 5
+            select:
+              options:
+              - Use player settings
+              - Always
+              - Never
+              multiple: false
+              custom_value: false
+              sort: false
+          default: Use player settings
     prompt_settings:
       name: Prompt settings for the LLM
       icon: mdi:robot
       description: You can use these settings to fine-tune the prompts for your specific
-        LLM (model). In most cases the defaults should be fine.
+        LLM (model).  In most cases the defaults should be fine.
       collapsed: true
       input:
         media_type_prompt:
@@ -122,7 +138,7 @@ blueprint:
           default: 'This argument is mandatory and must always be provided no matter
             what!
 
-            "media_type" can only be one of 6 different values:
+            "media_type" can only be one of 5 different values:
 
             - "track" if the search is about a specific track or a list of tracks.
 
@@ -132,9 +148,7 @@ blueprint:
 
             - "playlist" if the search specifically requests a playlist.
 
-            - "podcast" if the search is about a podcast or show.
-
-            - "radio" if the search is a radio channel or artist radio.
+            - "radio" if the search is a radio channel.
 
             media_type is mandatory and must always be provided. If a request does
             not match any of these types, for example when music from a specific genre
@@ -151,17 +165,17 @@ blueprint:
             of a specific track if the user mentions it while requesting to play a
             specific song. If the artist is unknown or there are multiple artists
             requested, use an empty string.'
-        track_prompt:
-          name: Track Prompt
-          description: The prompt that the LLM will use to provide the track.
+        album_prompt:
+          name: Album Prompt
+          description: The prompt that the LLM will use to provide the album.
           selector:
             text:
               multiline: true
               multiple: false
-          default: '"track" is the specific song or track the user wants to play.
-            If the user requests a specific song, provide the song title here.
-            If the track is unknown or there are multiple tracks requested, 
-            use an empty string.'
+          default: '"album" is the album the user requests to play, or the album a
+            specific track is from if the user mentions it when requesting to play
+            a specific song. If the album is unknown or there are multiple albums
+            requested, use an empty string.'
         media_id_prompt:
           name: Media ID Prompt
           description: The prompt that the LLM will use to provide the media_id.
@@ -172,26 +186,27 @@ blueprint:
           default: 'This argument is mandatory and must always be provided no matter
             what!
 
-            media_id is the identifier for the media to be played. It can be either a search term
-            or a Spotify URI/ID. For example:
+            media_id is the most specific from track, album, and artist.
 
-            - If media_type is "track": Then media_id is the track name or a Spotify track URI 
-              (e.g., "spotify:track:4cOdK2wGLETKBW3PvgPWqT")
+            "track" and "artist" can be a single value or multiple values.
 
-            - If media_type is "album": Then media_id is the album name or a Spotify album URI
-              (e.g., "spotify:album:0sNOF9WDwhWunNAHPD3Baj")
+            - If the search is about a track: Then media_id is the track name or a
+            list of track names (use a semicolon as separator). If there are multiple
+            artists in the result, use both the artist name and song name separated
+            by a dash as track name (example: "Artist name - Song name"). If all songs
+            are from the same artist, use the artist for the "artist" parameter, and
+            only use the song names as track name.
 
-            - If media_type is "artist": Then media_id is the artist name or a Spotify artist URI
-              (e.g., "spotify:artist:0TnOYISbd1XYRBk9myaseg")
+            - If the search is about an album: Then media_id is the album name or
+            a list of album names (use a semicolon as separator).
 
-            - If media_type is "playlist": Then media_id is the playlist name or a Spotify playlist URI
-              (e.g., "spotify:playlist:37i9dQZEVXcIroVdJc5khI")
+            - If the search is about an artist: Then media_id is the artist name.
 
-            - If media_type is "podcast": Then media_id is the podcast/show name or a Spotify show URI
-              (e.g., "spotify:show:2Shpxw7dPoxRJCdfFXTWLE")
+            - If the search is a specific playlist: Then media_id is the requested
+            playlist without the word playlist at the start or end (example: instead
+            of "Favorite Songs playlist" return "Favorite Songs").
 
-            - If media_type is "radio": Then media_id is the artist name followed by "Radio" or 
-              a Spotify artist URI (e.g., "spotify:artist:0TnOYISbd1XYRBk9myaseg")
+            - If the search is a radio channel: Then media_id is the requested channel.
 
             This is a mandatory argument and must always be provided.'
         media_description_prompt:
@@ -231,7 +246,7 @@ blueprint:
               multiple: false
           default: 'Only use "media_player" if the request specifically mentions a
             media player or multiple media players on which to play the music. This
-            has to be the entity_id of a media player provided by the Spotify Plus
+            has to be the entity_id of a media player provided by the Music Assistant
             integration.
 
             Only use both the "area" parameter and the "media_player" parameter together
@@ -262,9 +277,9 @@ blueprint:
     addition_conditions_actions:
       name: Additional actions
       icon: mdi:wrench
-      description: You can add additional actions to be performed after the Spotify Plus
-        play media action is started. Variables which can always be used
-        are media_id, media_type, track, artist. Based on the request, the variables
+      description: You can add additional actions to be performed after the Music
+        Assistant play media action is started. Variables which can always be used
+        are media_id, media_type, album, artist. Based on the request, the variables
         area and media_player can also be available.
       collapsed: true
       input:
@@ -275,7 +290,7 @@ blueprint:
           default: []
 mode: parallel
 max_exceeded: silent
-description: This script is used to play music from Spotify based on a voice request. Use the parameters
+description: This script is used to play music based on a voice request. Use the parameters
   as described in the description of each parameter.
 fields:
   media_type:
@@ -286,7 +301,6 @@ fields:
         - album
         - artist
         - playlist
-        - podcast
         - radio
     name: Media Type
     description: !input media_type_prompt
@@ -297,11 +311,11 @@ fields:
     name: Artist
     description: !input artist_prompt
     required: true
-  track:
+  album:
     selector:
       text:
-    name: Track
-    description: !input track_prompt
+    name: Album
+    description: !input album_prompt
     required: true
   media_id:
     selector:
@@ -319,7 +333,7 @@ fields:
     selector:
       area:
         entity:
-          integration: spotify_plus
+          integration: music_assistant
           domain: media_player
         multiple: true
     name: Area
@@ -328,7 +342,7 @@ fields:
     selector:
       entity:
         filter:
-          integration: spotify_plus
+          integration: music_assistant
           domain: media_player
         multiple: true
     name: Media Player
@@ -340,24 +354,23 @@ fields:
     description: !input shuffle_prompt
 sequence:
 - variables:
-    version: 20250613
+    version: 20250404
     default_player: !input default_player
-    search_limit: !input search_limit
     shuffle: '{{ shuffle }}'
-    player_data: '{% set sp = integration_entities(''spotify_plus'') %}
+    player_data: '{% set ma = integration_entities(''music_assistant'') %}
 
-      {% set sp_names = sp | map(''state_attr'', ''friendly_name'') | list %}
+      {% set ma_names = ma | map(''state_attr'', ''friendly_name'') | list %}
 
       {% set ns = namespace(players=[]) %} {% for player in media_player | default([],
       true) %}
 
-      {% if player in sp %}
+      {% if player in ma %}
 
       {% set ns.players = ns.players + [player] %}
 
-      {% elif player in sp_names %}
+      {% elif player in ma_names %}
 
-      {% set entity = sp | select(''is_state_attr'', ''friendly_name'', player) |
+      {% set entity = ma | select(''is_state_attr'', ''friendly_name'', player) |
       list %}
 
       {% set ns.players = ns.players + entity %}
@@ -377,122 +390,25 @@ sequence:
   - condition: template
     value_template: '{{ not (area | default or player_data or default_player) }}'
   then:
-  - stop: No valid target for Spotify Plus Voice script found
+  - stop: No valid target for Music Assistant Voice script found
     response_variable: invalid_target
-- choose:
-  # Search for tracks when necessary
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "track" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_tracks
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ (artist + " " if artist else "") + track if track else media_id }}'
-        limit: '{{ search_limit }}'
-      response_variable: track_search_results
-    - variables:
-        media_id: '{{ track_search_results.result.items[0].id if track_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: track
-  # Search for artists when necessary
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "artist" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_artists
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ artist if artist else media_id }}'
-        limit: '{{ search_limit }}'
-      response_variable: artist_search_results
-    - variables:
-        media_id: '{{ artist_search_results.result.items[0].id if artist_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: artist
-  # Search for albums when necessary
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "album" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_albums
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ (artist + " " if artist else "") + media_id }}'
-        limit: '{{ search_limit }}'
-      response_variable: album_search_results
-    - variables:
-        media_id: '{{ album_search_results.result.items[0].id if album_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: album
-  # Search for playlists when necessary
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "playlist" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_playlists
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ media_id }}'
-        limit: '{{ search_limit }}'
-      response_variable: playlist_search_results
-    - variables:
-        media_id: '{{ playlist_search_results.result.items[0].id if playlist_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: playlist
-  # Search for podcasts when necessary
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "podcast" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_shows
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ media_id }}'
-        limit: '{{ search_limit }}'
-      response_variable: podcast_search_results
-    - variables:
-        media_id: '{{ podcast_search_results.result.items[0].id if podcast_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: show
-  # Search for radio
-  - conditions:
-    - condition: template
-      value_template: '{{ media_type == "radio" and not media_id.startswith("spotify:") }}'
-    sequence:
-    - action: spotifyplus.search_artists
-      data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-        criteria: '{{ artist if artist else media_id | replace(" Radio", "") }}'
-        limit: '{{ search_limit }}'
-      response_variable: radio_search_results
-    - variables:
-        media_id: '{{ radio_search_results.result.items[0].id if radio_search_results.result.items | length > 0 else media_id }}'
-        media_type_uri: artist
-  default:
-  - variables:
-      media_type_uri: '{{ media_type }}' 
-- action: script.play_spotify_on_favorite_source
-  data: {}
-  continue_on_error: true
-  enabled: false
-- if:
-  - condition: template
-    value_template: '{{ media_id.startswith("spotify:") }}'
-  then:
-  - variables:
-      final_media_id: '{{ media_id }}'
-      final_media_type: '{{ media_type_uri if media_type_uri is defined else media_type }}'
-  else:
-  - variables:
-      final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id if media_id else media_id }}'
-      final_media_type: '{{ media_type }}'
-- alias: Set shuffle mode
-  action: spotifyplus.player_set_shuffle_mode
-  data:
-    state: '{{ shuffle }}'
-    entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
-    delay: 1
-  continue_on_error: true
-- alias: Play media using Spotify Plus
-  action: media_player.play_media
-  data:
-    media_content_id: '{{ final_media_id }}'
-    media_content_type: '{{ final_media_type }}'
+- variables:
+    play_continuously: !input play_continuously
+    action_data:
+      media_id: '{{ media_id.split('';'') | map(''trim'') | list if '';'' in media_id
+        else media_id }}'
+      media_type: '{{ media_type }}'
+      artist: '{{ artist | default(''NA'', true) }}'
+      album: '{{ album | default(''NA'', true) }}'
+      radio_mode: '{{ false if play_continuously == ''Never'' else play_continuously
+        == ''Always'' and media_type != ''radio'' or ''NA'' }}'
+- alias: Play music using Music Assistant
+  action: music_assistant.play_media
+  data: '{{ dict(action_data.items() | rejectattr(''1'', ''eq'', ''NA'')) }}'
   target: '{{ dict(target_data.items() | rejectattr(''1'', ''eq'', ''NA'')) }}'
-- sequence: !input actions 
+- alias: Enable/Disable shuffle on a Music Assistant Media Player
+  action: media_player.shuffle_set
+  data:
+    shuffle: '{{ shuffle }}'
+  target: '{{ dict(target_data.items() | rejectattr(''1'', ''eq'', ''NA'')) }}'
+- sequence: !input actions
