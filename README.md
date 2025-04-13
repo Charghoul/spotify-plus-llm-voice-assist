@@ -18,7 +18,7 @@ This blueprint creates a script that allows you to control your Spotify Plus int
 ## Prerequisites
 
 - Home Assistant (2024.6.0 or newer)
-- [Spotify Plus integration](https://github.com/hokiebrian/spotify_plus) installed and configured
+- [Spotify Plus integration](https://github.com/thlucas1/homeassistantcomponent_spotifyplus) installed and configured
 - A Home Assistant voice assistant with LLM capabilities (e.g., Assist with OpenAI, LocalAI, etc.)
 - A Premium Spotify subscription
 
