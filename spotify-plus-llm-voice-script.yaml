@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.17`
+    `v0.0.18`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -674,20 +674,18 @@ sequence:
     # Check if requested device exists in the available devices
     device_found: >-
       {% if target_device %}
-        {% if source_list %}
-          {% set device_exists = false %}
-          {% for device in source_list %}
-            {% if device == target_device %}
-              {% set device_exists = true %}
+              {% if source_list %}
+                {% set device_exists = false %}
+                  {% if target_device in source_list %}
+                    {% set device_exists = true %}
+                  {% endif %}
+                {{ device_exists }}
+              {% else %}
+                false
+              {% endif %}
+            {% else %}
+              false
             {% endif %}
-          {% endfor %}
-          {{ device_exists }}
-        {% else %}
-          false
-        {% endif %}
-      {% else %}
-        false
-      {% endif %}
     # Use target_device if found, otherwise use default device
     playback_device_id: >-
       {% if device_found == true %}
