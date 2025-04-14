@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.12`
+    `v0.0.13`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -415,8 +415,8 @@ sequence:
       response_variable: track_search_results
     - variables:
         media_id: >-
-          {% if track_search_results and track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] %}
-            {% if track_search_results.result.items[0].uri %}
+          {% if track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] is defined %}
+            {% if track_search_results.result.items[0].uri is defined %}
               {{ track_search_results.result.items[0].uri }}
             {% else %}
               {{ track_search_results.result.items[0].id }}
@@ -425,7 +425,7 @@ sequence:
             {{ media_id_safe }}
           {% endif %}
         track_id: >-
-          {% if track_search_results and track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] %}
+          {% if track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] is defined %}
             {{ track_search_results.result.items[0].id }}
           {% else %}
             {{ media_id_safe }}
@@ -447,26 +447,26 @@ sequence:
     - variables:
         # Extract values directly with safeguards for missing data
         artist_uri: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items|length > 0 %}
+          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
             {{ artist_search_results.result.items[0].uri }}
           {% else %}
             ''
           {% endif %}
         artist_id: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items|length > 0 %}
+          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
             {{ artist_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_artist }}
           {% endif %}
         artist_name: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items|length > 0 %}
+          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
             {{ artist_search_results.result.items[0].name }}
           {% else %}
             {{ search_term_artist }}
           {% endif %}
         # Use the URI if available, otherwise construct it
         media_id: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items|length > 0 %}
+          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
             {{ artist_search_results.result.items[0].uri }}
           {% else %}
             {{ search_term_artist }}
@@ -487,8 +487,8 @@ sequence:
       response_variable: album_search_results
     - variables:
         media_id: >-
-          {% if album_search_results and album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] %}
-            {% if album_search_results.result.items[0].uri %}
+          {% if album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] is defined %}
+            {% if album_search_results.result.items[0].uri is defined %}
               {{ album_search_results.result.items[0].uri }}
             {% else %}
               {{ album_search_results.result.items[0].id }}
@@ -497,7 +497,7 @@ sequence:
             {{ search_term_album }}
           {% endif %}
         album_id: >-
-          {% if album_search_results and album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] %}
+          {% if album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] is defined %}
             {{ album_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_album }}
@@ -518,8 +518,8 @@ sequence:
       response_variable: playlist_search_results
     - variables:
         media_id: >-
-          {% if playlist_search_results and playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] %}
-            {% if playlist_search_results.result.items[0].uri %}
+          {% if playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] is defined %}
+            {% if playlist_search_results.result.items[0].uri is defined %}
               {{ playlist_search_results.result.items[0].uri }}
             {% else %}
               {{ playlist_search_results.result.items[0].id }}
@@ -528,7 +528,7 @@ sequence:
             {{ search_term_playlist }}
           {% endif %}
         playlist_id: >-
-          {% if playlist_search_results and playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] %}
+          {% if playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] is defined %}
             {{ playlist_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_playlist }}
@@ -549,8 +549,8 @@ sequence:
       response_variable: podcast_search_results
     - variables:
         media_id: >-
-          {% if podcast_search_results and podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] %}
-            {% if podcast_search_results.result.items[0].uri %}
+          {% if podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] is defined %}
+            {% if podcast_search_results.result.items[0].uri is defined %}
               {{ podcast_search_results.result.items[0].uri }}
             {% else %}
               {{ podcast_search_results.result.items[0].id }}
@@ -559,7 +559,7 @@ sequence:
             {{ search_term_podcast }}
           {% endif %}
         podcast_id: >-
-          {% if podcast_search_results and podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] %}
+          {% if podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] is defined %}
             {{ podcast_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_podcast }}
@@ -580,8 +580,8 @@ sequence:
       response_variable: radio_search_results
     - variables:
         media_id: >-
-          {% if radio_search_results and radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] %}
-            {% if radio_search_results.result.items[0].uri %}
+          {% if radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] is defined %}
+            {% if radio_search_results.result.items[0].uri is defined %}
               {{ radio_search_results.result.items[0].uri }}
             {% else %}
               {{ radio_search_results.result.items[0].id }}
@@ -590,7 +590,7 @@ sequence:
             {{ search_term_radio }}
           {% endif %}
         radio_id: >-
-          {% if radio_search_results and radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] %}
+          {% if radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] is defined %}
             {{ radio_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_radio }}
@@ -677,7 +677,7 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         uris: '{{ final_media_id }}'
-      continue_on_error: true
+      continue_on_error: false
   # Regular context playback for all other types
   - conditions:
     - condition: template
@@ -688,7 +688,7 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         context_uri: '{{ final_media_id }}'
-      continue_on_error: true
+      continue_on_error: false
   # Default fallback to standard media_player
   default:
   - action: media_player.play_media
@@ -697,7 +697,7 @@ sequence:
     data:
       media_content_id: '{{ final_media_id }}'
       media_content_type: '{{ final_media_type }}'
-    continue_on_error: true
+    continue_on_error: false
 
 # Run any additional actions
 - sequence: !input actions 
