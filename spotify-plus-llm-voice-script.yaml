@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.7`
+    `v0.0.8`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -438,6 +438,14 @@ sequence:
       value_template: >-
         {% if media_type == "artist" and not is_spotify_uri %}true{% else %}false{% endif %}
     sequence:
+    - service: system_log.write
+      data:
+        level: info
+        message: >-
+          Artist search triggered with:
+          media_type: {{ media_type }}
+          artist_safe: {{ artist_safe }}
+          search_term_artist: {{ search_term_artist }}
     - action: spotifyplus.search_artists
       data:
         entity_id: '{{ default_entity }}'
@@ -447,11 +455,33 @@ sequence:
     - variables:
         media_id: >-
           {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
-            {{ artist_search_results.result.items[0].id }}
+            {% if artist_search_results.result.items[0].uri %}
+              {{ artist_search_results.result.items[0].uri }}
+            {% else %}
+              {{ artist_search_results.result.items[0].id }}
+            {% endif %}
           {% else %}
             {{ media_id_safe }}
           {% endif %}
         media_type_uri: artist
+        is_spotify_uri: >-
+          {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] and artist_search_results.result.items[0].uri %}
+            true
+          {% else %}
+            false
+          {% endif %}
+        # Log the search result for debugging
+        search_debug: >-
+          {% if artist_search_results %}
+            Artist search found: {{ artist_search_results.result.items | default([]) | length }} results.
+            {% if artist_search_results.result.items and artist_search_results.result.items[0] %}
+              First result ID: {{ artist_search_results.result.items[0].id }}
+              Name: {{ artist_search_results.result.items[0].name }}
+              URI: {{ artist_search_results.result.items[0].uri }}
+            {% endif %}
+          {% else %}
+            No results found.
+          {% endif %}
   # Search for albums when necessary
   - conditions:
     - condition: template
@@ -535,6 +565,51 @@ sequence:
   default:
   - variables:
       media_type_uri: '{{ media_type }}'
+      search_debug: >-
+        Default case triggered! This likely means no search was performed.
+        Media type: {{ media_type }}
+        Is Spotify URI: {{ is_spotify_uri }}
+        Original media ID: {{ media_id_safe }}
+      
+# Add a specific check for artist to ensure it's properly handled
+- if: 
+  - condition: template
+    value_template: >-
+      {% if media_type == "artist" and not media_id and not is_spotify_uri %}true{% else %}false{% endif %}
+  then:
+  - action: spotifyplus.search_artists
+    data:
+      entity_id: '{{ default_entity }}'
+      criteria: '{{ artist_safe }}'
+      limit: '{{ search_limit }}'
+    response_variable: artist_search_results
+  - variables:
+      media_id: >-
+        {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
+          {% if artist_search_results.result.items[0].uri %}
+            {{ artist_search_results.result.items[0].uri }}
+          {% else %}
+            {{ artist_search_results.result.items[0].id }}
+          {% endif %}
+        {% else %}
+          {{ artist_safe }}
+        {% endif %}
+      media_type_uri: artist
+      is_spotify_uri: >-
+        {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] and artist_search_results.result.items[0].uri %}
+          true
+        {% else %}
+          false
+        {% endif %}
+      search_debug: >-
+        Emergency artist search performed!
+        Artist search found: {{ artist_search_results.result.items | default([]) | length }} results.
+        {% if artist_search_results.result.items and artist_search_results.result.items[0] %}
+          First result ID: {{ artist_search_results.result.items[0].id }}
+          Name: {{ artist_search_results.result.items[0].name }}
+          URI: {{ artist_search_results.result.items[0].uri }}
+        {% endif %}
+
 # Prepare the final media ID/URI format
 - if:
   - condition: template
@@ -546,8 +621,28 @@ sequence:
       final_media_type: '{{ media_type_uri if media_type_uri is defined else media_type }}'
   else:
   - variables:
-      final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id_safe if media_id_safe else media_id_safe }}'
+      # Ensure we have a valid media ID - if empty, don't add any colons
+      final_media_id: >-
+        {% if media_id %}
+          {% if media_type == "artist" and artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] and artist_search_results.result.items[0].uri %}
+            {{ artist_search_results.result.items[0].uri }}
+          {% else %}
+            spotify:{{ media_type_uri }}:{{ media_id }}
+          {% endif %}
+        {% else %}
+          {{ media_id_safe }}
+        {% endif %}
       final_media_type: '{{ media_type }}'
+      
+  # Log the final media ID after construction
+  - service: system_log.write
+    data:
+      level: info
+      message: >-
+        Final media ID constructed: {{ final_media_id }}
+        from media_type: {{ media_type }}
+        and media_id: {{ media_id }}
+
 # Determine target source based on the request or defaults
 - variables:
     # Check if requested source exists in the source list
@@ -608,6 +703,23 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         uris: '{{ final_media_id }}'
+      continue_on_error: true
+  # Check if we have a URI from search
+  - conditions:
+    - condition: template
+      value_template: >-
+        {% if is_spotify_uri and media_id and media_id is string and 'spotify:' in media_id %}true{% else %}false{% endif %}
+    sequence:
+    - service: system_log.write
+      data:
+        level: info
+        message: "Using direct URI from search: {{ media_id }}"
+    - action: spotifyplus.player_media_play_context
+      data:
+        entity_id: '{{ default_entity }}'
+        context_uri: '{{ media_id }}'
+      continue_on_error: true
+  # Regular context playback
   - conditions:
     - condition: template
       value_template: >-
@@ -617,6 +729,7 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         context_uri: '{{ final_media_id }}'
+      continue_on_error: true
   # Default fallback to standard media_player
   default:
   - action: media_player.play_media
@@ -625,4 +738,19 @@ sequence:
     data:
       media_content_id: '{{ final_media_id }}'
       media_content_type: '{{ final_media_type }}'
+    continue_on_error: true
+  
+# Add debugging info to log
+- service: system_log.write
+  data:
+    level: info
+    message: >-
+      SpotifyPlus script executed with:
+      media_type: {{ media_type }}
+      artist: {{ artist_safe }}
+      media_id original: {{ media_id_safe }}
+      media_id final: {{ final_media_id }}
+      media_type_uri: {{ media_type_uri|default('none') }}
+      final_media_type: {{ final_media_type }}
+      {% if search_debug is defined %}Search debug: {{ search_debug }}{% endif %}
 - sequence: !input actions 
