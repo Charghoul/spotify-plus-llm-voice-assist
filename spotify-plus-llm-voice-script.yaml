@@ -96,6 +96,25 @@ blueprint:
           selector:
             text:
           default:
+        force_device_activation:
+          name: Force Device Activation
+          description: 'Force the device to reconnect to Spotify Connect before transferring playback.
+            This is useful if devices sometimes appear as available but actually need to be re-activated.'
+          selector:
+            boolean:
+          default: true
+        device_transfer_delay:
+          name: Device Transfer Delay
+          description: 'Time delay (in seconds) to wait after transferring playback to a device.
+            This gives Spotify time to process the change before attempting to play media.'
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.1
+              mode: slider
+              unit_of_measurement: seconds
+          default: 0.5
         search_limit:
           name: Search Limit
           description: 'The maximum number of search results to return when searching
@@ -334,9 +353,11 @@ fields:
     description: !input shuffle_prompt
 sequence:
 - variables:
-    version: 20250613
+    version: 20250626
     default_entity: !input default_entity
     default_device: !input default_device
+    force_device_activation: !input force_device_activation
+    device_transfer_delay: !input device_transfer_delay
     search_limit: !input search_limit
     shuffle: '{{ shuffle }}'
     target_device: '{{ device_name | default(default_device, true) }}'
@@ -348,9 +369,13 @@ sequence:
   then:
   - stop: No valid SpotifyPlus entity specified for Voice script
     response_variable: invalid_target
-- action: spotifyplus.get_player_devices
+# Get list of available Spotify Connect devices
+- alias: Get available Spotify Connect devices
+  action: spotifyplus.get_player_devices
   data:
     entity_id: '{{ default_entity }}'
+    refresh: true
+    sort_result: true
   response_variable: available_devices
 - choose:
   # Search for tracks when necessary
@@ -439,7 +464,8 @@ sequence:
         media_type_uri: artist
   default:
   - variables:
-      media_type_uri: '{{ media_type }}' 
+      media_type_uri: '{{ media_type }}'
+# Prepare the final media ID/URI format
 - if:
   - condition: template
     value_template: '{{ media_id.startswith("spotify:") }}'
@@ -451,6 +477,38 @@ sequence:
   - variables:
       final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id if media_id else media_id }}'
       final_media_type: '{{ media_type }}'
+# Determine target device based on the request or defaults
+- variables:
+    matched_device_info: >-
+      {% set ns = namespace(device_id=none, device_name=none) %}
+      {% if target_device %}
+        {% for device in available_devices.result.devices %}
+          {% if device.name | lower == target_device | lower %}
+            {% set ns.device_id = device.id %}
+            {% set ns.device_name = device.name %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {
+        "id": {{ ns.device_id | tojson }},
+        "name": {{ ns.device_name | tojson }}
+      }
+# Handle device transfer if needed
+- choose:
+  - conditions:
+    - condition: template
+      value_template: '{{ matched_device_info.id is not none }}'
+    sequence:
+    - alias: Transfer playback to requested device
+      action: spotifyplus.player_transfer_playback
+      data:
+        entity_id: '{{ default_entity }}'
+        device_id: '{{ matched_device_info.id }}'
+        play: true
+        force_activate_device: '{{ force_device_activation }}'
+        delay: '{{ device_transfer_delay }}'
+  default: []
+# Set shuffle mode
 - alias: Set shuffle mode
   action: spotifyplus.player_set_shuffle_mode
   data:
@@ -458,38 +516,8 @@ sequence:
     entity_id: '{{ default_entity }}'
     delay: 1
   continue_on_error: true
-- choose:
-  # If a specific device is requested or default is specified
-  - conditions:
-    - condition: template
-      value_template: '{{ target_device }}'
-    sequence:
-    # Find the device in available devices
-    - variables:
-        matched_device: >-
-          {% set ns = namespace(device_id=none) %}
-          {% for device in available_devices.result.devices %}
-            {% if device.name | lower == target_device | lower %}
-              {% set ns.device_id = device.id %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.device_id }}
-    # If device found, transfer playback
-    - choose:
-      - conditions:
-        - condition: template
-          value_template: '{{ matched_device is not none }}'
-        sequence:
-        - alias: Transfer playback to requested device
-          action: spotifyplus.player_transfer_playback
-          data:
-            entity_id: '{{ default_entity }}'
-            device_id: '{{ matched_device }}'
-            play: true
-      # If device not found, just play on whatever is active
-      default: []
-  default: []
-- alias: Play media using SpotifyPlus
+# Play the requested media
+- alias: Play requested content
   choose:
   - conditions:
     - condition: template
@@ -499,7 +527,7 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         uris: '{{ final_media_id }}'
-        device_id: '{{ matched_device if matched_device is defined and matched_device is not none else "*" }}'
+        device_id: '{{ matched_device_info.id if matched_device_info.id is not none else "*" }}'
   - conditions:
     - condition: template
       value_template: '{{ final_media_type == "playlist" or final_media_type == "album" or final_media_type == "artist" or final_media_type == "show" }}'
@@ -508,7 +536,7 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         context_uri: '{{ final_media_id }}'
-        device_id: '{{ matched_device if matched_device is defined and matched_device is not none else "*" }}'
+        device_id: '{{ matched_device_info.id if matched_device_info.id is not none else "*" }}'
   # Default fallback to standard media_player
   default:
   - action: media_player.play_media
