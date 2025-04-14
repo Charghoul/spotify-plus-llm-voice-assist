@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.15`
+    `v0.0.16`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -671,32 +671,43 @@ sequence:
 
 # Determine target source based on the request or defaults
 - variables:
-    # Check if requested source exists in the source list
-    source_found: >-
+    # Check if requested device exists in the available devices
+    device_found: >-
       {% if target_device %}
-        {% if source_list and target_device in source_list %}
-          true
+        {% if available_devices and available_devices.devices is defined %}
+          {% set device_exists = false %}
+          {% for device in available_devices.devices %}
+            {% if device.name == target_device %}
+              {% set device_exists = true %}
+            {% endif %}
+          {% endfor %}
+          {{ device_exists }}
         {% else %}
           false
         {% endif %}
       {% else %}
         false
       {% endif %}
+    # Use target_device if found, otherwise use default device
+    playback_device_id: >-
+      {% if device_found == true %}
+        {{ target_device }}
+      {% else %}
+        {{ default_device }}
+      {% endif %}
 
-# Handle source selection if needed
-- choose:
-  - conditions:
-    - condition: template
-      value_template: >-
-        {% if source_found %}true{% else %}false{% endif %}
-    sequence:
-    - alias: Select requested source for playback
-      service: media_player.select_source
-      target:
-        entity_id: '{{ default_entity }}'
-      data:
-        source: '{{ target_device }}'
-  default: []
+# Check if the requested device was not found
+- if:
+  - condition: template
+    value_template: >-
+      {% if target_device and target_device != default_device and device_found != true %}true{% else %}false{% endif %}
+  then:
+  - service: persistent_notification.create
+    data:
+      title: "Spotify Playback Warning"
+      message: >-
+        Device "{{ target_device }}" not found in available Spotify Connect devices.
+        Using default device instead.
 
 # Play the requested content
 - alias: Play requested content
@@ -709,6 +720,7 @@ sequence:
     - action: spotifyplus.player_media_play_tracks
       data:
         entity_id: '{{ default_entity }}'
+        device_id: '{{ playback_device_id }}'
         uris: '{{ final_media_id }}'
       continue_on_error: false
   # Regular context playback for all other types
@@ -720,17 +732,9 @@ sequence:
     - action: spotifyplus.player_media_play_context
       data:
         entity_id: '{{ default_entity }}'
+        device_id: '{{ playback_device_id }}'
         context_uri: '{{ final_media_id }}'
       continue_on_error: false
-  # Default fallback to standard media_player
-  default:
-  - action: media_player.play_media
-    target:
-      entity_id: '{{ default_entity }}'
-    data:
-      media_content_id: '{{ final_media_id }}'
-      media_content_type: '{{ final_media_type }}'
-    continue_on_error: false
 
 # Set shuffle mode
 - alias: Set shuffle mode
@@ -738,6 +742,7 @@ sequence:
   data:
     state: '{{ shuffle }}'
     entity_id: '{{ default_entity }}'
+    device_id: '{{ playback_device_id }}'
     delay: 1
   continue_on_error: true
 
