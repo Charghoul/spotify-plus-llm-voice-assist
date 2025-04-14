@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.16`
+    `v0.0.17`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -674,10 +674,10 @@ sequence:
     # Check if requested device exists in the available devices
     device_found: >-
       {% if target_device %}
-        {% if available_devices and available_devices.devices is defined %}
+        {% if source_list %}
           {% set device_exists = false %}
-          {% for device in available_devices.devices %}
-            {% if device.name == target_device %}
+          {% for device in source_list %}
+            {% if device == target_device %}
               {% set device_exists = true %}
             {% endif %}
           {% endfor %}
@@ -702,11 +702,9 @@ sequence:
     value_template: >-
       {% if target_device and target_device != default_device and device_found != true %}true{% else %}false{% endif %}
   then:
-  - service: persistent_notification.create
-    data:
-      title: "Spotify Playback Warning"
-      message: >-
-        Device "{{ target_device }}" not found in available Spotify Connect devices.
+  - variables:
+      device_warning: >-
+        Device "{{ target_device }}" not found in available sources.
         Using default device instead.
 
 # Play the requested content
