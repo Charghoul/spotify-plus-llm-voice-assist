@@ -20,9 +20,9 @@ blueprint:
     ## Example for script description
 
     `This script is used to play music from Spotify based on a voice request. The tool takes the
-    following arguments: media_type, artist, track, media_id, shuffle, device_name. media_id,
+    following arguments: media_type, artist, track, media_id, shuffle, source_name. media_id,
     media_type are always required and must always be supplied as arguments to this
-    tool. A device or area can optionally be provided in the voice request as well. 
+    tool. A source or area can optionally be provided in the voice request as well. 
     Use the parameters as described in the description of each parameter. 
     Use this tool whenever the user requests to play music from Spotify.`
 
@@ -52,15 +52,15 @@ blueprint:
     The variable will undefined in case there was no area information, in case it
     is defined it will be a list of area_ids|
 
-    |`device_name`|The Spotify Connect device name determined by the LLM on which
-    the request will be played. The variable will be undefined if there was no device
+    |`source_name`|The Spotify Connect source name determined by the LLM on which
+    the request will be played. The variable will be undefined if there was no source
     provided in the request.|
 
     |`default_entity`|The default SpotifyPlus entity provided when setting up the script or `none`
     if no entity is provided.|
 
-    |`default_device`|The default Spotify Connect device provided when setting up the script or `none`
-    if no device is provided.|
+    |`default_device`|The default Spotify Connect source provided when setting up the script or `none`
+    if no source is provided.|
 
     |`shuffle`|Whether or not to turn on the shuffle setting on the player that handles the request.
     It will be set based on whether or not the request mentions wanting to shuffle the music.
@@ -86,13 +86,13 @@ blueprint:
               filter:
                 domain:
                 - media_player
+                integration:
+                - spotifyplus
               multiple: false
           default:
         default_device:
-          name: Default Device
-          description: 'The default Spotify Connect device which will be used if it
-            is not clear from the request which device the music should play on.
-            Leave empty if you do not want a default device.'
+          name: Default Source
+          description: 'Default Spotify Connect source to use if none specified in the request. This can be any device you have connected to Spotify - a speaker, phone, computer, etc. Enter "none" to always use the current active device if available.'
           selector:
             text:
           default:
@@ -235,27 +235,23 @@ blueprint:
               multiline: true
               multiple: false
           default: 'The area or areas for which the music is requested. If the request
-            does not mention a target (either an area or a device), use the area the
+            does not mention a target (either an area or a source), use the area the
             request comes from.
 
-            If the area can not be determined from the request, or the device the
+            If the area can not be determined from the request, or the source the
             request comes from, do not use this parameter.
 
-            Only use both the "area" parameter and the "device_name" parameter together
+            Only use both the "area" parameter and the "source_name" parameter together
             if both are specifically used in the request.'
-        device_name_prompt:
-          name: Device Name Prompt
-          description: The prompt that the LLM will use to provide the device name.
-          selector:
-            text:
-              multiline: true
-              multiple: false
-          default: 'Only use "device_name" if the request specifically mentions a
-            Spotify Connect device on which to play the music. This could be a device name
-            like "Living Room Speaker" or "Kitchen Echo".
-
-            Only use both the "area" parameter and the "device_name" parameter together
-            if both are specifically used in the request.'
+        source_name_prompt:
+          name: Source Name Prompt
+          description: >-
+            The description that will be used in the message to either skip or
+            suggest a source that is different from the default one.
+          default: >-
+            You can specify a source for playback by saying "on the [source name]".
+            For example, "Play Queen on the living room" or "Play relaxing music in the bedroom".
+            Available sources are the ones listed in your SpotifyPlus media player's source_list.
         shuffle_prompt:
           name: Shuffle Prompt
           description: The prompt that the LLM will use to determine whether to turn on shuffle or not.
@@ -285,7 +281,7 @@ blueprint:
       description: You can add additional actions to be performed after the Spotify play
         media action is started. Variables which can always be used
         are media_id, media_type, track, artist. Based on the request, the variables
-        area and device_name can also be available.
+        area and source_name can also be available.
       collapsed: true
       input:
         actions:
@@ -341,11 +337,11 @@ fields:
         multiple: true
     name: Area
     description: !input area_prompt
-  device_name:
+  source_name:
     selector:
       text:
-    name: Device Name
-    description: !input device_name_prompt
+    name: Source Name
+    description: !input source_name_prompt
   shuffle:
     selector:
       boolean:
@@ -360,7 +356,7 @@ sequence:
     device_transfer_delay: !input device_transfer_delay
     search_limit: !input search_limit
     shuffle: '{{ shuffle }}'
-    target_device: '{{ device_name | default(default_device, true) }}'
+    target_device: '{{ source_name | default(default_device, true) }}'
     invalid_target:
       response: Unable to find valid target
 - if:
@@ -369,6 +365,9 @@ sequence:
   then:
   - stop: No valid SpotifyPlus entity specified for Voice script
     response_variable: invalid_target
+# Get available source list from the SpotifyPlus entity
+- variables:
+    source_list: '{{ state_attr(default_entity, "source_list") | default([]) }}'
 # Get list of available Spotify Connect devices
 - alias: Get available Spotify Connect devices
   action: spotifyplus.get_player_devices
@@ -477,36 +476,43 @@ sequence:
   - variables:
       final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id if media_id else media_id }}'
       final_media_type: '{{ media_type }}'
-# Determine target device based on the request or defaults
+# Determine target source based on the request or defaults
 - variables:
-    matched_device_info: >-
-      {% set ns = namespace(device_id=none, device_name=none) %}
+    # Check if requested source exists in the source list
+    source_found: >-
       {% if target_device %}
-        {% for device in available_devices.result.devices %}
-          {% if device.name | lower == target_device | lower %}
-            {% set ns.device_id = device.id %}
-            {% set ns.device_name = device.name %}
-          {% endif %}
-        {% endfor %}
+        {% if source_list and target_device in source_list %}
+          true
+        {% else %}
+          false
+        {% endif %}
+      {% else %}
+        false
       {% endif %}
-      {
-        "id": {{ ns.device_id | tojson }},
-        "name": {{ ns.device_name | tojson }}
-      }
-# Handle device transfer if needed
+
+# Handle source selection if needed
 - choose:
   - conditions:
     - condition: template
-      value_template: '{{ matched_device_info.id is not none }}'
+      value_template: '{{ source_found }}'
     sequence:
-    - alias: Transfer playback to requested device
-      action: spotifyplus.player_transfer_playback
-      data:
+    - alias: Select requested source for playback
+      service: media_player.select_source
+      target:
         entity_id: '{{ default_entity }}'
-        device_id: '{{ matched_device_info.id }}'
-        play: true
-        force_activate_device: '{{ force_device_activation }}'
-        delay: '{{ device_transfer_delay }}'
+      data:
+        source: '{{ target_device }}'
+  # If specific source requested but not found, show warning
+  - conditions:
+    - condition: template
+      value_template: '{{ target_device and not source_found }}'
+    sequence:
+    - alias: Log warning about source not found
+      service: system_log.write
+      data:
+        level: warning
+        message: "Requested source '{{ target_device }}' not found in available sources. Will use current source instead."
+  # If no specific source requested, skip source selection
   default: []
 # Set shuffle mode
 - alias: Set shuffle mode
@@ -516,7 +522,7 @@ sequence:
     entity_id: '{{ default_entity }}'
     delay: 1
   continue_on_error: true
-# Play the requested media
+# Play the requested content
 - alias: Play requested content
   choose:
   - conditions:
@@ -527,7 +533,6 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         uris: '{{ final_media_id }}'
-        device_id: '{{ matched_device_info.id if matched_device_info.id is not none else "*" }}'
   - conditions:
     - condition: template
       value_template: '{{ final_media_type == "playlist" or final_media_type == "album" or final_media_type == "artist" or final_media_type == "show" }}'
@@ -536,7 +541,6 @@ sequence:
       data:
         entity_id: '{{ default_entity }}'
         context_uri: '{{ final_media_id }}'
-        device_id: '{{ matched_device_info.id if matched_device_info.id is not none else "*" }}'
   # Default fallback to standard media_player
   default:
   - action: media_player.play_media
