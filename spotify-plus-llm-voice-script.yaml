@@ -375,6 +375,8 @@ sequence:
     media_id_safe: '{{ media_id | default("") }}'
     artist_safe: '{{ artist | default("") }}'
     track_safe: '{{ track | default("") }}'
+    # We'll just check if it contains spotify: - not perfect but better than failing
+    is_spotify_uri: '{{ media_id_safe and "spotify:" in media_id_safe }}'
     search_term_track: '{{ (artist_safe + " " if artist_safe else "") + (track_safe if track_safe else media_id_safe) }}'
     search_term_artist: '{{ artist_safe if artist_safe else media_id_safe }}'
     search_term_album: '{{ (artist_safe + " " if artist_safe else "") + media_id_safe }}'
@@ -393,7 +395,8 @@ sequence:
   # Search for tracks when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "track" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "track" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_tracks
       data:
@@ -407,7 +410,8 @@ sequence:
   # Search for artists when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "artist" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "artist" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_artists
       data:
@@ -421,7 +425,8 @@ sequence:
   # Search for albums when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "album" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "album" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_albums
       data:
@@ -435,7 +440,8 @@ sequence:
   # Search for playlists when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "playlist" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "playlist" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_playlists
       data:
@@ -449,7 +455,8 @@ sequence:
   # Search for podcasts when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "podcast" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "podcast" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_shows
       data:
@@ -463,7 +470,8 @@ sequence:
   # Search for radio
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "radio" and not (media_id is string_filter("startswith", "spotify:")) }}'
+      value_template: >-
+        {{ media_type == "radio" and not is_spotify_uri }}
     sequence:
     - action: spotifyplus.search_artists
       data:
@@ -480,7 +488,8 @@ sequence:
 # Prepare the final media ID/URI format
 - if:
   - condition: template
-    value_template: '{{ media_id_safe is string_filter("startswith", "spotify:") }}'
+    value_template: >-
+      {{ is_spotify_uri }}
   then:
   - variables:
       final_media_id: '{{ media_id_safe }}'
