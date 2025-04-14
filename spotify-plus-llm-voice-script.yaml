@@ -3,6 +3,7 @@ blueprint:
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
     `v0.0.4`
+    
     # Creates a script which will allow voice requests for SpotifyPlus
 
     * No changes are required for any of the settings below for this script to work,
@@ -371,12 +372,15 @@ sequence:
 # Get available source list from the SpotifyPlus entity
 - variables:
     source_list: '{{ state_attr(default_entity, "source_list") | default([]) }}'
-    search_term_track: '{{ (artist + " " if artist else "") + (track if track else media_id) }}'
-    search_term_artist: '{{ artist if artist else media_id }}'
-    search_term_album: '{{ (artist + " " if artist else "") + media_id }}'
-    search_term_playlist: '{{ media_id }}'
-    search_term_podcast: '{{ media_id }}'
-    search_term_radio: '{{ artist if artist else media_id | replace(" Radio", "") }}'
+    media_id_safe: '{{ media_id | default("") }}'
+    artist_safe: '{{ artist | default("") }}'
+    track_safe: '{{ track | default("") }}'
+    search_term_track: '{{ (artist_safe + " " if artist_safe else "") + (track_safe if track_safe else media_id_safe) }}'
+    search_term_artist: '{{ artist_safe if artist_safe else media_id_safe }}'
+    search_term_album: '{{ (artist_safe + " " if artist_safe else "") + media_id_safe }}'
+    search_term_playlist: '{{ media_id_safe }}'
+    search_term_podcast: '{{ media_id_safe }}'
+    search_term_radio: '{{ artist_safe if artist_safe else (media_id_safe | replace(" Radio", "")) }}'
 # Get list of available Spotify Connect devices
 - alias: Get available Spotify Connect devices
   action: spotifyplus.get_player_devices
@@ -389,7 +393,7 @@ sequence:
   # Search for tracks when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "track" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "track" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_tracks
       data:
@@ -398,12 +402,12 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: track_search_results
     - variables:
-        media_id: '{{ track_search_results.result.items[0].id if track_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ track_search_results.result.items[0].id if track_search_results.result.items is defined and track_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: track
   # Search for artists when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "artist" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "artist" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_artists
       data:
@@ -412,12 +416,12 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
     - variables:
-        media_id: '{{ artist_search_results.result.items[0].id if artist_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ artist_search_results.result.items[0].id if artist_search_results.result.items is defined and artist_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: artist
   # Search for albums when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "album" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "album" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_albums
       data:
@@ -426,12 +430,12 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: album_search_results
     - variables:
-        media_id: '{{ album_search_results.result.items[0].id if album_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ album_search_results.result.items[0].id if album_search_results.result.items is defined and album_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: album
   # Search for playlists when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "playlist" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "playlist" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_playlists
       data:
@@ -440,12 +444,12 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: playlist_search_results
     - variables:
-        media_id: '{{ playlist_search_results.result.items[0].id if playlist_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ playlist_search_results.result.items[0].id if playlist_search_results.result.items is defined and playlist_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: playlist
   # Search for podcasts when necessary
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "podcast" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "podcast" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_shows
       data:
@@ -454,12 +458,12 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: podcast_search_results
     - variables:
-        media_id: '{{ podcast_search_results.result.items[0].id if podcast_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ podcast_search_results.result.items[0].id if podcast_search_results.result.items is defined and podcast_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: show
   # Search for radio
   - conditions:
     - condition: template
-      value_template: '{{ media_type == "radio" and not media_id.startswith("spotify:") }}'
+      value_template: '{{ media_type == "radio" and not (media_id is string_filter("startswith", "spotify:")) }}'
     sequence:
     - action: spotifyplus.search_artists
       data:
@@ -468,7 +472,7 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: radio_search_results
     - variables:
-        media_id: '{{ radio_search_results.result.items[0].id if radio_search_results.result.items | length > 0 else media_id }}'
+        media_id: '{{ radio_search_results.result.items[0].id if radio_search_results.result.items is defined and radio_search_results.result.items | length > 0 else media_id_safe }}'
         media_type_uri: artist
   default:
   - variables:
@@ -476,14 +480,14 @@ sequence:
 # Prepare the final media ID/URI format
 - if:
   - condition: template
-    value_template: '{{ media_id.startswith("spotify:") }}'
+    value_template: '{{ media_id_safe is string_filter("startswith", "spotify:") }}'
   then:
   - variables:
-      final_media_id: '{{ media_id }}'
+      final_media_id: '{{ media_id_safe }}'
       final_media_type: '{{ media_type_uri if media_type_uri is defined else media_type }}'
   else:
   - variables:
-      final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id if media_id else media_id }}'
+      final_media_id: '{{ "spotify:" + media_type_uri + ":" + media_id_safe if media_id_safe else media_id_safe }}'
       final_media_type: '{{ media_type }}'
 # Determine target source based on the request or defaults
 - variables:
