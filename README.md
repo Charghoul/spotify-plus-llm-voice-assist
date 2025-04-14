@@ -27,7 +27,7 @@ This blueprint creates a script that allows you to control your Spotify Plus int
 
 1. Go to **Settings** > **Automations & Scenes** > **Blueprints**.
 2. Click the **Import Blueprint** button.
-3. Paste the URL of this repository or select the local file.
+3. Paste this URL `https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml`
 4. Click **Import Blueprint**.
 
 ## Setup
@@ -36,7 +36,7 @@ This blueprint creates a script that allows you to control your Spotify Plus int
 2. Click the **Create Script** button.
 3. Choose the **LLM Script for Spotify Plus voice requests** blueprint.
 4. Configure the settings:
-   - Select your default Spotify Plus player.
+   - Select your default SpotifyPlus player.
    - Adjust the search limit if needed.
    - Review the prompt settings for LLM (usually the defaults work well).
 5. Click **Save**.
@@ -94,5 +94,5 @@ This blueprint offers several advantages over traditional voice intents:
 ## Credits
 
 - [Home Assistant](https://www.home-assistant.io/) team for the LLM voice capabilities
-- [Spotify Plus](https://github.com/hokiebrian/spotify_plus) integration by hokiebrian
+- [Spotify Plus](https://github.com/thlucas1/homeassistantcomponent_spotifyplus) integration by hokiebrian
 - Based on the structure of the [Music Assistant voice script](https://github.com/music-assistant/voice-support) 

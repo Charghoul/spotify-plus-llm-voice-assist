@@ -60,14 +60,11 @@ blueprint:
     |`default_entity`|The default SpotifyPlus entity provided when setting up the script or `none`
     if no entity is provided.|
 
-    |`default_device`|The default Spotify Connect source provided when setting up the script or `none`
-    if no source is provided.|
-
     |`shuffle`|Whether or not to turn on the shuffle setting on the player that handles the request.
     It will be set based on whether or not the request mentions wanting to shuffle the music.
     The value will either be true or false.|'
   domain: script
-  author: Charghoul & Jan Eisenbarth
+  author: Jan Eisenbarth
   homeassistant:
     min_version: 2024.6.0
   input:
@@ -114,7 +111,7 @@ blueprint:
               step: 0.1
               mode: slider
               unit_of_measurement: seconds
-          default: 0.5
+          default: 1
         search_limit:
           name: Search Limit
           description: 'The maximum number of search results to return when searching
