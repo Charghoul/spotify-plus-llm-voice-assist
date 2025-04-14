@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.9`
+    `v0.0.10`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -407,15 +407,6 @@ sequence:
       value_template: >-
         {% if media_type == "track" %}true{% else %}false{% endif %}
     sequence:
-    - service: system_log.write
-      data:
-        level: info
-        message: >-
-          Track search triggered with:
-          media_type: {{ media_type }}
-          artist_safe: {{ artist_safe }}
-          track_safe: {{ track_safe }}
-          search_term_track: {{ search_term_track }}
     - action: spotifyplus.search_tracks
       data:
         entity_id: '{{ default_entity }}'
@@ -430,11 +421,6 @@ sequence:
             {{ media_id_safe }}
           {% endif %}
         media_type_uri: track
-        search_debug: >-
-          Track search found: {{ track_search_results.result.items | default([]) | length }} results.
-          {% if track_search_results.result.items and track_search_results.result.items[0] %}
-            First result ID: {{ track_search_results.result.items[0].id }}
-          {% endif %}
 
   # Search for artists
   - conditions:
@@ -442,14 +428,6 @@ sequence:
       value_template: >-
         {% if media_type == "artist" %}true{% else %}false{% endif %}
     sequence:
-    - service: system_log.write
-      data:
-        level: info
-        message: >-
-          Artist search triggered with:
-          media_type: {{ media_type }}
-          artist_safe: {{ artist_safe }}
-          search_term_artist: {{ search_term_artist }}
     - action: spotifyplus.search_artists
       data:
         entity_id: '{{ default_entity }}'
@@ -457,20 +435,28 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
     - variables:
+        # Use the full URI directly - this is the most reliable approach
         media_id: >-
+          {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
+            {{ artist_search_results.result.items[0].uri }}
+          {% else %}
+            {{ search_term_artist }}
+          {% endif %}
+        # Also save the raw ID in case we need it
+        artist_id: >-
           {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
             {{ artist_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_artist }}
           {% endif %}
-        media_type_uri: artist
-        search_debug: >-
-          Artist search found: {{ artist_search_results.result.items | default([]) | length }} results.
-          {% if artist_search_results.result.items and artist_search_results.result.items[0] %}
-            First result ID: {{ artist_search_results.result.items[0].id }}
-            Name: {{ artist_search_results.result.items[0].name }}
-            URI: {{ artist_search_results.result.items[0].uri }}
+        # Flag to indicate we're using a direct URI
+        using_direct_uri: >-
+          {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] and artist_search_results.result.items[0].uri %}
+            true
+          {% else %}
+            false
           {% endif %}
+        media_type_uri: artist
 
   # Search for albums
   - conditions:
@@ -478,14 +464,6 @@ sequence:
       value_template: >-
         {% if media_type == "album" %}true{% else %}false{% endif %}
     sequence:
-    - service: system_log.write
-      data:
-        level: info
-        message: >-
-          Album search triggered with:
-          media_type: {{ media_type }}
-          artist_safe: {{ artist_safe }}
-          search_term_album: {{ search_term_album }}
     - action: spotifyplus.search_albums
       data:
         entity_id: '{{ default_entity }}'
@@ -567,29 +545,18 @@ sequence:
   default:
   - variables:
       media_type_uri: '{{ media_type }}'
-      search_debug: >-
-        Default case triggered! This likely means no search was performed.
-        Media type: {{ media_type }}
-        Media ID: {{ media_id_safe }}
 
 # Prepare the final media ID/URI format
 - variables:
     final_media_id: >-
-      {% if media_id %}
+      {% if media_type == "artist" and using_direct_uri == "true" %}
+        {{ media_id }}
+      {% elif media_id %}
         spotify:{{ media_type_uri }}:{{ media_id }}
       {% else %}
         {{ media_id_safe }}
       {% endif %}
     final_media_type: '{{ media_type }}'
-    
-# Log the final media ID for debugging
-- service: system_log.write
-  data:
-    level: info
-    message: >-
-      Final media ID constructed: {{ final_media_id }}
-      from media_type: {{ media_type }}
-      and media_id: {{ media_id }}
 
 # Determine target source based on the request or defaults
 - variables:
@@ -618,19 +585,8 @@ sequence:
         entity_id: '{{ default_entity }}'
       data:
         source: '{{ target_device }}'
-  # If specific source requested but not found, show warning
-  - conditions:
-    - condition: template
-      value_template: >-
-        {% if target_device and not source_found %}true{% else %}false{% endif %}
-    sequence:
-    - alias: Log warning about source not found
-      service: system_log.write
-      data:
-        level: warning
-        message: "Requested source '{{ target_device }}' not found in available sources. Will use current source instead."
-  # If no specific source requested, skip source selection
   default: []
+
 # Set shuffle mode
 - alias: Set shuffle mode
   action: spotifyplus.player_set_shuffle_mode
@@ -639,6 +595,7 @@ sequence:
     entity_id: '{{ default_entity }}'
     delay: 1
   continue_on_error: true
+
 # Play the requested content
 - alias: Play requested content
   choose:
@@ -672,18 +629,6 @@ sequence:
       media_content_id: '{{ final_media_id }}'
       media_content_type: '{{ final_media_type }}'
     continue_on_error: true
-  
-# Add debugging info to log
-- service: system_log.write
-  data:
-    level: info
-    message: >-
-      SpotifyPlus script completed with:
-      media_type: {{ media_type }}
-      artist: {{ artist_safe }}
-      media_id original: {{ media_id_safe }}
-      media_id final: {{ final_media_id }}
-      media_type_uri: {{ media_type_uri|default('none') }}
-      final_media_type: {{ final_media_type }}
-      {% if search_debug is defined %}Search debug: {{ search_debug }}{% endif %}
+
+# Run any additional actions
 - sequence: !input actions 
