@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.13`
+    `v0.0.15`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -415,20 +415,20 @@ sequence:
       response_variable: track_search_results
     - variables:
         media_id: >-
-          {% if track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] is defined %}
-            {% if track_search_results.result.items[0].uri is defined %}
-              {{ track_search_results.result.items[0].uri }}
+          {% if track_search_results.result is defined and track_search_results.result.get('items') is defined and track_search_results.result.get('items')[0] is defined %}
+            {% if track_search_results.result.get('items')[0].uri is defined %}
+              {{ track_search_results.result.get('items')[0].uri }}
             {% else %}
-              {{ track_search_results.result.items[0].id }}
+              {{ track_search_results.result.get('items')[0].id }}
             {% endif %}
           {% else %}
-            {{ media_id_safe }}
+            error
           {% endif %}
         track_id: >-
-          {% if track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] is defined %}
-            {{ track_search_results.result.items[0].id }}
+          {% if track_search_results.result is defined and track_search_results.result.get('items') is defined and track_search_results.result.get('items')[0] is defined %}
+            {{ track_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ media_id_safe }}
+            error
           {% endif %}
         media_type_uri: track
 
@@ -445,31 +445,27 @@ sequence:
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
     - variables:
-        # Extract values directly with safeguards for missing data
-        artist_uri: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
-            {{ artist_search_results.result.items[0].uri }}
+        media_id: >-
+          {% if artist_search_results.result is defined and artist_search_results.result.get('items') is defined and artist_search_results.result.get('items')[0] is defined %}
+            {% if artist_search_results.result.get('items')[0].uri is defined %}
+              {{ artist_search_results.result.get('items')[0].uri }}
+            {% else %}
+              {{ artist_search_results.result.get('items')[0].id }}
+            {% endif %}
           {% else %}
-            ''
+            error
           {% endif %}
         artist_id: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
-            {{ artist_search_results.result.items[0].id }}
+          {% if artist_search_results.result is defined and artist_search_results.result.get('items') is defined and artist_search_results.result.get('items')[0] is defined %}
+            {{ artist_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ search_term_artist }}
+            error
           {% endif %}
         artist_name: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
-            {{ artist_search_results.result.items[0].name }}
+          {% if artist_search_results.result is defined and artist_search_results.result.get('items') is defined and artist_search_results.result.get('items')[0] is defined %}
+            {{ artist_search_results.result.get('items')[0].name }}
           {% else %}
-            {{ search_term_artist }}
-          {% endif %}
-        # Use the URI if available, otherwise construct it
-        media_id: >-
-          {% if artist_search_results.result.items is defined and artist_search_results.result.items[0] is defined %}
-            {{ artist_search_results.result.items[0].uri }}
-          {% else %}
-            {{ search_term_artist }}
+            Unknown
           {% endif %}
         media_type_uri: artist
 
@@ -487,20 +483,32 @@ sequence:
       response_variable: album_search_results
     - variables:
         media_id: >-
-          {% if album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] is defined %}
-            {% if album_search_results.result.items[0].uri is defined %}
-              {{ album_search_results.result.items[0].uri }}
+          {% if album_search_results.result is defined and album_search_results.result.get('items') is defined and album_search_results.result.get('items')[0] is defined %}
+            {% if album_search_results.result.get('items')[0].uri is defined %}
+              {{ album_search_results.result.get('items')[0].uri }}
             {% else %}
-              {{ album_search_results.result.items[0].id }}
+              {{ album_search_results.result.get('items')[0].id }}
             {% endif %}
           {% else %}
-            {{ search_term_album }}
+            error
           {% endif %}
         album_id: >-
-          {% if album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] is defined %}
-            {{ album_search_results.result.items[0].id }}
+          {% if album_search_results.result is defined and album_search_results.result.get('items') is defined and album_search_results.result.get('items')[0] is defined %}
+            {{ album_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ search_term_album }}
+            error
+          {% endif %}
+        album_name: >-
+          {% if album_search_results.result is defined and album_search_results.result.get('items') is defined and album_search_results.result.get('items')[0] is defined %}
+            {{ album_search_results.result.get('items')[0].name }}
+          {% else %}
+            Unknown
+          {% endif %}
+        album_artist_name: >-
+          {% if album_search_results.result is defined and album_search_results.result.get('items') is defined and album_search_results.result.get('items')[0] is defined and album_search_results.result.get('items')[0].get('artists') is defined and album_search_results.result.get('items')[0].get('artists')[0] is defined %}
+            {{ album_search_results.result.get('items')[0].get('artists')[0].name }}
+          {% else %}
+            Unknown
           {% endif %}
         media_type_uri: album
 
@@ -518,20 +526,26 @@ sequence:
       response_variable: playlist_search_results
     - variables:
         media_id: >-
-          {% if playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] is defined %}
-            {% if playlist_search_results.result.items[0].uri is defined %}
-              {{ playlist_search_results.result.items[0].uri }}
+          {% if playlist_search_results.result is defined and playlist_search_results.result.get('items') is defined and playlist_search_results.result.get('items')[0] is defined %}
+            {% if playlist_search_results.result.get('items')[0].uri is defined %}
+              {{ playlist_search_results.result.get('items')[0].uri }}
             {% else %}
-              {{ playlist_search_results.result.items[0].id }}
+              {{ playlist_search_results.result.get('items')[0].id }}
             {% endif %}
           {% else %}
-            {{ search_term_playlist }}
+            error
           {% endif %}
         playlist_id: >-
-          {% if playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] is defined %}
-            {{ playlist_search_results.result.items[0].id }}
+          {% if playlist_search_results.result is defined and playlist_search_results.result.get('items') is defined and playlist_search_results.result.get('items')[0] is defined %}
+            {{ playlist_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ search_term_playlist }}
+            error
+          {% endif %}
+        playlist_name: >-
+          {% if playlist_search_results.result is defined and playlist_search_results.result.get('items') is defined and playlist_search_results.result.get('items')[0] is defined %}
+            {{ playlist_search_results.result.get('items')[0].name }}
+          {% else %}
+            Unknown
           {% endif %}
         media_type_uri: playlist
 
@@ -549,20 +563,26 @@ sequence:
       response_variable: podcast_search_results
     - variables:
         media_id: >-
-          {% if podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] is defined %}
-            {% if podcast_search_results.result.items[0].uri is defined %}
-              {{ podcast_search_results.result.items[0].uri }}
+          {% if podcast_search_results.result is defined and podcast_search_results.result.get('items') is defined and podcast_search_results.result.get('items')[0] is defined %}
+            {% if podcast_search_results.result.get('items')[0].uri is defined %}
+              {{ podcast_search_results.result.get('items')[0].uri }}
             {% else %}
-              {{ podcast_search_results.result.items[0].id }}
+              {{ podcast_search_results.result.get('items')[0].id }}
             {% endif %}
           {% else %}
-            {{ search_term_podcast }}
+            error
           {% endif %}
         podcast_id: >-
-          {% if podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] is defined %}
-            {{ podcast_search_results.result.items[0].id }}
+          {% if podcast_search_results.result is defined and podcast_search_results.result.get('items') is defined and podcast_search_results.result.get('items')[0] is defined %}
+            {{ podcast_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ search_term_podcast }}
+            error
+          {% endif %}
+        podcast_name: >-
+          {% if podcast_search_results.result is defined and podcast_search_results.result.get('items') is defined and podcast_search_results.result.get('items')[0] is defined %}
+            {{ podcast_search_results.result.get('items')[0].name }}
+          {% else %}
+            Unknown
           {% endif %}
         media_type_uri: show
 
@@ -580,52 +600,74 @@ sequence:
       response_variable: radio_search_results
     - variables:
         media_id: >-
-          {% if radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] is defined %}
-            {% if radio_search_results.result.items[0].uri is defined %}
-              {{ radio_search_results.result.items[0].uri }}
+          {% if radio_search_results.result is defined and radio_search_results.result.get('items') is defined and radio_search_results.result.get('items')[0] is defined %}
+            {% if radio_search_results.result.get('items')[0].uri is defined %}
+              {{ radio_search_results.result.get('items')[0].uri }}
             {% else %}
-              {{ radio_search_results.result.items[0].id }}
+              {{ radio_search_results.result.get('items')[0].id }}
             {% endif %}
           {% else %}
-            {{ search_term_radio }}
+            error
           {% endif %}
         radio_id: >-
-          {% if radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] is defined %}
-            {{ radio_search_results.result.items[0].id }}
+          {% if radio_search_results.result is defined and radio_search_results.result.get('items') is defined and radio_search_results.result.get('items')[0] is defined %}
+            {{ radio_search_results.result.get('items')[0].id }}
           {% else %}
-            {{ search_term_radio }}
+            error
           {% endif %}
-        media_type_uri: artist
+        radio_name: >-
+          {% if radio_search_results.result is defined and radio_search_results.result.get('items') is defined and radio_search_results.result.get('items')[0] is defined %}
+            {{ radio_search_results.result.get('items')[0].name }}
+          {% else %}
+            Unknown
+          {% endif %}
+        media_type_uri: station
 
   default:
   - variables:
       media_type_uri: '{{ media_type }}'
 
+# Check if search failed and show appropriate error message
+- if:
+  - condition: template
+    value_template: >-
+      {% if media_id == "error" %}true{% else %}false{% endif %}
+  then:
+  - stop: "Could not find {{ media_type }} for '{{ media_id_safe }}'. Please try a different search term."
+    error: true
+
 # Prepare the final media ID/URI format
 - variables:
     final_media_id: >-
-      {% if media_type == "artist" and artist_uri != '' %}
-        {{ artist_uri }}
-      {% elif media_type == "artist" and artist_id %}
-        spotify:artist:{{ artist_id }}
-      {% elif media_id and 'spotify:' in media_id %}
+      {% if media_id and 'spotify:' in media_id %}
         {{ media_id }}
-      {% elif media_type == "track" and track_id %}
+      {% elif media_type == "track" and track_id and track_id != "error" %}
         spotify:track:{{ track_id }}
-      {% elif media_type == "album" and album_id %}
+      {% elif media_type == "artist" and artist_id and artist_id != "error" %}
+        spotify:artist:{{ artist_id }}
+      {% elif media_type == "album" and album_id and album_id != "error" %}
         spotify:album:{{ album_id }}
-      {% elif media_type == "playlist" and playlist_id %}
+      {% elif media_type == "playlist" and playlist_id and playlist_id != "error" %}
         spotify:playlist:{{ playlist_id }}
-      {% elif media_type == "podcast" and podcast_id %}
+      {% elif media_type == "podcast" and podcast_id and podcast_id != "error" %}
         spotify:show:{{ podcast_id }}
-      {% elif media_type == "radio" and radio_id %}
+      {% elif media_type == "radio" and radio_id and radio_id != "error" %}
         spotify:artist:{{ radio_id }}
-      {% elif media_id %}
+      {% elif media_id and media_id != "error" %}
         spotify:{{ media_type_uri }}:{{ media_id }}
       {% else %}
-        {{ media_id_safe }}
+        error
       {% endif %}
     final_media_type: '{{ media_type }}'
+
+# Check if media ID construction failed
+- if:
+  - condition: template
+    value_template: >-
+      {% if final_media_id == "error" %}true{% else %}false{% endif %}
+  then:
+  - stop: "Failed to construct a valid Spotify URI for {{ media_type }} '{{ media_id_safe }}'. Please try a different search term."
+    error: true
 
 # Determine target source based on the request or defaults
 - variables:
@@ -655,15 +697,6 @@ sequence:
       data:
         source: '{{ target_device }}'
   default: []
-
-# Set shuffle mode
-- alias: Set shuffle mode
-  action: spotifyplus.player_set_shuffle_mode
-  data:
-    state: '{{ shuffle }}'
-    entity_id: '{{ default_entity }}'
-    delay: 1
-  continue_on_error: true
 
 # Play the requested content
 - alias: Play requested content
@@ -698,6 +731,15 @@ sequence:
       media_content_id: '{{ final_media_id }}'
       media_content_type: '{{ final_media_type }}'
     continue_on_error: false
+
+# Set shuffle mode
+- alias: Set shuffle mode
+  action: spotifyplus.player_set_shuffle_mode
+  data:
+    state: '{{ shuffle }}'
+    entity_id: '{{ default_entity }}'
+    delay: 1
+  continue_on_error: true
 
 # Run any additional actions
 - sequence: !input actions 
