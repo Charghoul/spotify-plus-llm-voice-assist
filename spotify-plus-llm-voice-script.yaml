@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.10`
+    `v0.0.11`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -416,6 +416,16 @@ sequence:
     - variables:
         media_id: >-
           {% if track_search_results and track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] %}
+            {% if track_search_results.result.items[0].uri %}
+              {{ track_search_results.result.items[0].uri }}
+            {% else %}
+              {{ track_search_results.result.items[0].id }}
+            {% endif %}
+          {% else %}
+            {{ media_id_safe }}
+          {% endif %}
+        track_id: >-
+          {% if track_search_results and track_search_results.result and track_search_results.result.items and track_search_results.result.items[0] %}
             {{ track_search_results.result.items[0].id }}
           {% else %}
             {{ media_id_safe }}
@@ -434,27 +444,34 @@ sequence:
         criteria: '{{ search_term_artist }}'
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
+    # Temporary debug output
+    - service: persistent_notification.create
+      data:
+        title: "Artist Search Results"
+        message: >-
+          Search term: {{ search_term_artist }}
+          {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
+          First result:
+          - ID: {{ artist_search_results.result.items[0].id }}
+          - URI: {{ artist_search_results.result.items[0].uri }}
+          - Name: {{ artist_search_results.result.items[0].name }}
+          {% else %}
+          No results found
+          {% endif %}
     - variables:
-        # Use the full URI directly - this is the most reliable approach
+        # Use the URI for direct playback
         media_id: >-
           {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
             {{ artist_search_results.result.items[0].uri }}
           {% else %}
             {{ search_term_artist }}
           {% endif %}
-        # Also save the raw ID in case we need it
+        # Save raw ID for URI construction if needed
         artist_id: >-
           {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] %}
             {{ artist_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_artist }}
-          {% endif %}
-        # Flag to indicate we're using a direct URI
-        using_direct_uri: >-
-          {% if artist_search_results and artist_search_results.result and artist_search_results.result.items and artist_search_results.result.items[0] and artist_search_results.result.items[0].uri %}
-            true
-          {% else %}
-            false
           {% endif %}
         media_type_uri: artist
 
@@ -472,6 +489,16 @@ sequence:
       response_variable: album_search_results
     - variables:
         media_id: >-
+          {% if album_search_results and album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] %}
+            {% if album_search_results.result.items[0].uri %}
+              {{ album_search_results.result.items[0].uri }}
+            {% else %}
+              {{ album_search_results.result.items[0].id }}
+            {% endif %}
+          {% else %}
+            {{ search_term_album }}
+          {% endif %}
+        album_id: >-
           {% if album_search_results and album_search_results.result and album_search_results.result.items and album_search_results.result.items[0] %}
             {{ album_search_results.result.items[0].id }}
           {% else %}
@@ -494,6 +521,16 @@ sequence:
     - variables:
         media_id: >-
           {% if playlist_search_results and playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] %}
+            {% if playlist_search_results.result.items[0].uri %}
+              {{ playlist_search_results.result.items[0].uri }}
+            {% else %}
+              {{ playlist_search_results.result.items[0].id }}
+            {% endif %}
+          {% else %}
+            {{ search_term_playlist }}
+          {% endif %}
+        playlist_id: >-
+          {% if playlist_search_results and playlist_search_results.result and playlist_search_results.result.items and playlist_search_results.result.items[0] %}
             {{ playlist_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_playlist }}
@@ -514,6 +551,16 @@ sequence:
       response_variable: podcast_search_results
     - variables:
         media_id: >-
+          {% if podcast_search_results and podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] %}
+            {% if podcast_search_results.result.items[0].uri %}
+              {{ podcast_search_results.result.items[0].uri }}
+            {% else %}
+              {{ podcast_search_results.result.items[0].id }}
+            {% endif %}
+          {% else %}
+            {{ search_term_podcast }}
+          {% endif %}
+        podcast_id: >-
           {% if podcast_search_results and podcast_search_results.result and podcast_search_results.result.items and podcast_search_results.result.items[0] %}
             {{ podcast_search_results.result.items[0].id }}
           {% else %}
@@ -536,6 +583,16 @@ sequence:
     - variables:
         media_id: >-
           {% if radio_search_results and radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] %}
+            {% if radio_search_results.result.items[0].uri %}
+              {{ radio_search_results.result.items[0].uri }}
+            {% else %}
+              {{ radio_search_results.result.items[0].id }}
+            {% endif %}
+          {% else %}
+            {{ search_term_radio }}
+          {% endif %}
+        radio_id: >-
+          {% if radio_search_results and radio_search_results.result and radio_search_results.result.items and radio_search_results.result.items[0] %}
             {{ radio_search_results.result.items[0].id }}
           {% else %}
             {{ search_term_radio }}
@@ -549,14 +606,42 @@ sequence:
 # Prepare the final media ID/URI format
 - variables:
     final_media_id: >-
-      {% if media_type == "artist" and using_direct_uri == "true" %}
+      {% if media_id and 'spotify:' in media_id %}
         {{ media_id }}
+      {% elif media_type == "track" and track_id %}
+        spotify:track:{{ track_id }}
+      {% elif media_type == "artist" and artist_id %}
+        spotify:artist:{{ artist_id }}
+      {% elif media_type == "album" and album_id %}
+        spotify:album:{{ album_id }}
+      {% elif media_type == "playlist" and playlist_id %}
+        spotify:playlist:{{ playlist_id }}
+      {% elif media_type == "podcast" and podcast_id %}
+        spotify:show:{{ podcast_id }}
+      {% elif media_type == "radio" and radio_id %}
+        spotify:artist:{{ radio_id }}
       {% elif media_id %}
         spotify:{{ media_type_uri }}:{{ media_id }}
       {% else %}
         {{ media_id_safe }}
       {% endif %}
     final_media_type: '{{ media_type }}'
+    
+# Log the constructed media ID for debugging
+- service: persistent_notification.create
+  data:
+    title: "Final Media ID"
+    message: >-
+      Media type: {{ media_type }}
+      Media ID: {{ media_id }}
+      {% if media_type == "track" %}Track ID: {{ track_id if track_id is defined else 'not set' }}{% endif %}
+      {% if media_type == "artist" %}Artist ID: {{ artist_id if artist_id is defined else 'not set' }}{% endif %}
+      {% if media_type == "album" %}Album ID: {{ album_id if album_id is defined else 'not set' }}{% endif %}
+      {% if media_type == "playlist" %}Playlist ID: {{ playlist_id if playlist_id is defined else 'not set' }}{% endif %}
+      {% if media_type == "podcast" %}Podcast ID: {{ podcast_id if podcast_id is defined else 'not set' }}{% endif %}
+      {% if media_type == "radio" %}Radio ID: {{ radio_id if radio_id is defined else 'not set' }}{% endif %}
+      Final Media ID: {{ final_media_id }}
+      Final Media Type: {{ final_media_type }}
 
 # Determine target source based on the request or defaults
 - variables:
