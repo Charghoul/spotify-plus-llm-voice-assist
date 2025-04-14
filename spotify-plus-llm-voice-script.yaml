@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.3`
+    `v0.0.4`
     # Creates a script which will allow voice requests for SpotifyPlus
 
     * No changes are required for any of the settings below for this script to work,
@@ -167,8 +167,12 @@ blueprint:
               multiple: false
           default: '"artist" is the artist the user requests to play, or the artist
             of a specific track if the user mentions it while requesting to play a
-            specific song. If the artist is unknown or there are multiple artists
-            requested, use an empty string.'
+            specific song. 
+            
+            For example, if the request is "Play Bohemian Rhapsody by Queen", the artist would be "Queen".
+            
+            If the artist is unknown or there are multiple artists requested, 
+            use an empty string.'
         track_prompt:
           name: Track Prompt
           description: The prompt that the LLM will use to provide the track.
@@ -178,6 +182,9 @@ blueprint:
               multiple: false
           default: '"track" is the specific song or track the user wants to play.
             If the user requests a specific song, provide the song title here.
+            
+            For example, if the request is "Play Bohemian Rhapsody by Queen", the track would be "Bohemian Rhapsody".
+            
             If the track is unknown or there are multiple tracks requested, 
             use an empty string.'
         media_id_prompt:
@@ -190,28 +197,25 @@ blueprint:
           default: 'This argument is mandatory and must always be provided no matter
             what!
 
-            media_id is the identifier for the media to be played. It can be either a search term
-            or a Spotify URI/ID. For example:
+            media_id is a descriptive search term that will be used to find the content in Spotify.
+            
+            - If media_type is "track": Then media_id should be the track name or a list of track names. 
+              If there are multiple artists in the result, include both the artist name and song name 
+              (example: "Artist name - Song name"). If all songs are from the same artist, use the 
+              artist parameter separately, and only provide song names in media_id.
 
-            - If media_type is "track": Then media_id is the track name or a Spotify track URI 
-              (e.g., "spotify:track:4cOdK2wGLETKBW3PvgPWqT")
+            - If media_type is "album": Then media_id should be the album name.
 
-            - If media_type is "album": Then media_id is the album name or a Spotify album URI
-              (e.g., "spotify:album:0sNOF9WDwhWunNAHPD3Baj")
+            - If media_type is "artist": Then media_id should be the artist name.
 
-            - If media_type is "artist": Then media_id is the artist name or a Spotify artist URI
-              (e.g., "spotify:artist:0TnOYISbd1XYRBk9myaseg")
+            - If media_type is "playlist": Then media_id should be the playlist name.
 
-            - If media_type is "playlist": Then media_id is the playlist name or a Spotify playlist URI
-              (e.g., "spotify:playlist:37i9dQZEVXcIroVdJc5khI")
+            - If media_type is "podcast": Then media_id should be the podcast/show name.
 
-            - If media_type is "podcast": Then media_id is the podcast/show name or a Spotify show URI
-              (e.g., "spotify:show:2Shpxw7dPoxRJCdfFXTWLE")
+            - If media_type is "radio": Then media_id should be the artist name followed by "Radio".
 
-            - If media_type is "radio": Then media_id is the artist name followed by "Radio" or 
-              a Spotify artist URI (e.g., "spotify:artist:0TnOYISbd1XYRBk9myaseg")
-
-            This is a mandatory argument and must always be provided.'
+            This is a mandatory argument and must always be provided. The system will search Spotify 
+            for the closest match to what you provide here.'
         media_description_prompt:
           name: Media Description Prompt
           description: The prompt that the LLM will use to provide the media description.
@@ -288,8 +292,10 @@ blueprint:
           default: []
 mode: parallel
 max_exceeded: silent
-description: This script is used to play music from Spotify based on a voice request. Use the parameters
-  as described in the description of each parameter.
+description: This script is used to play music from Spotify based on a voice request. You only need to provide 
+  descriptive information like artist names, song titles, or playlist names - the script will handle searching 
+  for the best match in Spotify. The media_type and media_id parameters are required. You can optionally 
+  specify a source (Spotify Connect device) or area.
 fields:
   media_type:
     selector:
@@ -365,6 +371,12 @@ sequence:
 # Get available source list from the SpotifyPlus entity
 - variables:
     source_list: '{{ state_attr(default_entity, "source_list") | default([]) }}'
+    search_term_track: '{{ (artist + " " if artist else "") + (track if track else media_id) }}'
+    search_term_artist: '{{ artist if artist else media_id }}'
+    search_term_album: '{{ (artist + " " if artist else "") + media_id }}'
+    search_term_playlist: '{{ media_id }}'
+    search_term_podcast: '{{ media_id }}'
+    search_term_radio: '{{ artist if artist else media_id | replace(" Radio", "") }}'
 # Get list of available Spotify Connect devices
 - alias: Get available Spotify Connect devices
   action: spotifyplus.get_player_devices
@@ -382,7 +394,7 @@ sequence:
     - action: spotifyplus.search_tracks
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ (artist + " " if artist else "") + track if track else media_id }}'
+        criteria: '{{ search_term_track }}'
         limit: '{{ search_limit }}'
       response_variable: track_search_results
     - variables:
@@ -396,7 +408,7 @@ sequence:
     - action: spotifyplus.search_artists
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ artist if artist else media_id }}'
+        criteria: '{{ search_term_artist }}'
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
     - variables:
@@ -410,7 +422,7 @@ sequence:
     - action: spotifyplus.search_albums
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ (artist + " " if artist else "") + media_id }}'
+        criteria: '{{ search_term_album }}'
         limit: '{{ search_limit }}'
       response_variable: album_search_results
     - variables:
@@ -424,7 +436,7 @@ sequence:
     - action: spotifyplus.search_playlists
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ media_id }}'
+        criteria: '{{ search_term_playlist }}'
         limit: '{{ search_limit }}'
       response_variable: playlist_search_results
     - variables:
@@ -438,7 +450,7 @@ sequence:
     - action: spotifyplus.search_shows
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ media_id }}'
+        criteria: '{{ search_term_podcast }}'
         limit: '{{ search_limit }}'
       response_variable: podcast_search_results
     - variables:
@@ -452,7 +464,7 @@ sequence:
     - action: spotifyplus.search_artists
       data:
         entity_id: '{{ default_entity }}'
-        criteria: '{{ artist if artist else media_id | replace(" Radio", "") }}'
+        criteria: '{{ search_term_radio }}'
         limit: '{{ search_limit }}'
       response_variable: radio_search_results
     - variables:
