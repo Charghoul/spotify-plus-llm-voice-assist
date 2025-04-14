@@ -2,6 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
+    `v0.0.3`
     # Creates a script which will allow voice requests for SpotifyPlus
 
     * No changes are required for any of the settings below for this script to work,
