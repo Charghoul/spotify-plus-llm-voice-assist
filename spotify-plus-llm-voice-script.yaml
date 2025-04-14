@@ -87,8 +87,7 @@ blueprint:
               filter:
                 domain:
                 - media_player
-                integration:
-                - spotifyplus
+                integration: spotifyplus
               multiple: false
           default:
         default_device:
