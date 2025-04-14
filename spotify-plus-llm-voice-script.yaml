@@ -1,8 +1,8 @@
 blueprint:
-  name: Voice - Spotify Plus - Full LLM script
+  name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    # Creates a script which will allow voice requests for Spotify Plus
+    # Creates a script which will allow voice requests for SpotifyPlus
 
     * No changes are required for any of the settings below for this script to work,
     but your specific LLM integration may need some fine-tuning. To do that, adjust
@@ -13,18 +13,18 @@ blueprint:
     * **Make sure to give the script a clear description.** An example can be found
     below.
 
-    * It is possible to add additional actions to be performed after the Spotify Plus
+    * It is possible to add additional actions to be performed after the SpotifyPlus
     play media action. There are several variables available which are described below.
 
 
     ## Example for script description
 
     `This script is used to play music from Spotify based on a voice request. The tool takes the
-    following arguments: media_type, artist, track, media_id, shuffle, area. media_id,
+    following arguments: media_type, artist, track, media_id, shuffle, device_name. media_id,
     media_type are always required and must always be supplied as arguments to this
-    tool. An area or Spotify Plus media player can optionally be provided in the
-    voice request as well. Use the parameters as described in the description of each
-    parameter. Use this tool whenever the user requests to play music from Spotify.`
+    tool. A device or area can optionally be provided in the voice request as well. 
+    Use the parameters as described in the description of each parameter. 
+    Use this tool whenever the user requests to play music from Spotify.`
 
     ## Available variables for additional actions
 
@@ -52,46 +52,49 @@ blueprint:
     The variable will undefined in case there was no area information, in case it
     is defined it will be a list of area_ids|
 
-    |`media_player`|The Spotify Plus media player(s) determined by the LLM on which
-    the request will be played. The variable will be undefined if there was no media
-    player provided in the request. If it is defined, it should be a list of entity_ids,
-    but it could be the LLM provided names instead.
+    |`device_name`|The Spotify Connect device name determined by the LLM on which
+    the request will be played. The variable will be undefined if there was no device
+    provided in the request.|
 
-    |`default_player`|The default player provided when setting up the script or `none`
-    if no player is provided.|
+    |`default_entity`|The default SpotifyPlus entity provided when setting up the script or `none`
+    if no entity is provided.|
 
-    |`target_data`|The target data based on the input by the LLM, and `default_player`.
-    It will be a dictionary with the keys `area_id` and `entity_id`. The value will
-    be (a list of) ids relevant for the key or `"NA"` in case it was not used. Example:
-    `{"area_id": ["living_room"], "entity_id", "NA"}`|
-    
+    |`default_device`|The default Spotify Connect device provided when setting up the script or `none`
+    if no device is provided.|
+
     |`shuffle`|Whether or not to turn on the shuffle setting on the player that handles the request.
     It will be set based on whether or not the request mentions wanting to shuffle the music.
     The value will either be true or false.|'
   domain: script
-  author: Charghoul
+  author: Charghoul & Jan Eisenbarth
   homeassistant:
     min_version: 2024.6.0
   input:
     spotify_plus_settings:
-      name: Settings for Spotify Plus playback
+      name: Settings for SpotifyPlus playback
       icon: mdi:spotify
-      description: You can use these settings to configure how Spotify Plus playback
+      description: You can use these settings to configure how SpotifyPlus playback
         is handled.
       input:
-        default_player:
-          name: Default Player
-          description: 'The default Spotify Plus player which will be used if it
-            is not clear from the request in which area or on which player the request
-            should be played.
-
-            Leave empty if you do not want a default player.'
+        default_entity:
+          name: Default SpotifyPlus Entity
+          description: 'The SpotifyPlus media player entity that will be used for all playback.
+            This is required since the thlucas1 SpotifyPlus integration uses a single entity
+            with multiple sources rather than multiple entities.'
           selector:
             entity:
               filter:
                 domain:
                 - media_player
               multiple: false
+          default:
+        default_device:
+          name: Default Device
+          description: 'The default Spotify Connect device which will be used if it
+            is not clear from the request which device the music should play on.
+            Leave empty if you do not want a default device.'
+          selector:
+            text:
           default:
         search_limit:
           name: Search Limit
@@ -213,27 +216,26 @@ blueprint:
               multiline: true
               multiple: false
           default: 'The area or areas for which the music is requested. If the request
-            does not mention a target (either an area or a player), use the area the
+            does not mention a target (either an area or a device), use the area the
             request comes from.
 
             If the area can not be determined from the request, or the device the
             request comes from, do not use this parameter.
 
-            Only use both the "area" parameter and the "media_player" parameter together
+            Only use both the "area" parameter and the "device_name" parameter together
             if both are specifically used in the request.'
-        media_player_prompt:
-          name: Media Player Prompt
-          description: The prompt that the LLM will use to provide the media player.
+        device_name_prompt:
+          name: Device Name Prompt
+          description: The prompt that the LLM will use to provide the device name.
           selector:
             text:
               multiline: true
               multiple: false
-          default: 'Only use "media_player" if the request specifically mentions a
-            media player or multiple media players on which to play the music. This
-            has to be the entity_id of a media player provided by the Spotify Plus
-            integration.
+          default: 'Only use "device_name" if the request specifically mentions a
+            Spotify Connect device on which to play the music. This could be a device name
+            like "Living Room Speaker" or "Kitchen Echo".
 
-            Only use both the "area" parameter and the "media_player" parameter together
+            Only use both the "area" parameter and the "device_name" parameter together
             if both are specifically used in the request.'
         shuffle_prompt:
           name: Shuffle Prompt
@@ -261,10 +263,10 @@ blueprint:
     addition_conditions_actions:
       name: Additional actions
       icon: mdi:wrench
-      description: You can add additional actions to be performed after the Spotify Plus
-        play media action is started. Variables which can always be used
+      description: You can add additional actions to be performed after the Spotify play
+        media action is started. Variables which can always be used
         are media_id, media_type, track, artist. Based on the request, the variables
-        area and media_player can also be available.
+        area and device_name can also be available.
       collapsed: true
       input:
         actions:
@@ -317,21 +319,14 @@ fields:
   area:
     selector:
       area:
-        entity:
-          integration: spotify_plus
-          domain: media_player
         multiple: true
     name: Area
     description: !input area_prompt
-  media_player:
+  device_name:
     selector:
-      entity:
-        filter:
-          integration: spotify_plus
-          domain: media_player
-        multiple: true
-    name: Media Player
-    description: !input media_player_prompt
+      text:
+    name: Device Name
+    description: !input device_name_prompt
   shuffle:
     selector:
       boolean:
@@ -340,44 +335,23 @@ fields:
 sequence:
 - variables:
     version: 20250613
-    default_player: !input default_player
+    default_entity: !input default_entity
+    default_device: !input default_device
     search_limit: !input search_limit
     shuffle: '{{ shuffle }}'
-    player_data: '{% set sp = integration_entities(''spotify_plus'') %}
-
-      {% set sp_names = sp | map(''state_attr'', ''friendly_name'') | list %}
-
-      {% set ns = namespace(players=[]) %} {% for player in media_player | default([],
-      true) %}
-
-      {% if player in sp %}
-
-      {% set ns.players = ns.players + [player] %}
-
-      {% elif player in sp_names %}
-
-      {% set entity = sp | select(''is_state_attr'', ''friendly_name'', player) |
-      list %}
-
-      {% set ns.players = ns.players + entity %}
-
-      {% endif %}
-
-      {% endfor %}
-
-      {{ ns.players }}'
-    target_data:
-      area_id: '{{ area | default(''NA'', true) }}'
-      entity_id: '{{ ''NA'' if area | default and not player_data else (player_data
-        or default_player) | default(''NA'', true) }}'
+    target_device: '{{ device_name | default(default_device, true) }}'
     invalid_target:
       response: Unable to find valid target
 - if:
   - condition: template
-    value_template: '{{ not (area | default or player_data or default_player) }}'
+    value_template: '{{ not default_entity }}'
   then:
-  - stop: No valid target for Spotify Plus Voice script found
+  - stop: No valid SpotifyPlus entity specified for Voice script
     response_variable: invalid_target
+- action: spotifyplus.get_player_devices
+  data:
+    entity_id: '{{ default_entity }}'
+  response_variable: available_devices
 - choose:
   # Search for tracks when necessary
   - conditions:
@@ -386,7 +360,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_tracks
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ (artist + " " if artist else "") + track if track else media_id }}'
         limit: '{{ search_limit }}'
       response_variable: track_search_results
@@ -400,7 +374,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_artists
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ artist if artist else media_id }}'
         limit: '{{ search_limit }}'
       response_variable: artist_search_results
@@ -414,7 +388,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_albums
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ (artist + " " if artist else "") + media_id }}'
         limit: '{{ search_limit }}'
       response_variable: album_search_results
@@ -428,7 +402,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_playlists
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ media_id }}'
         limit: '{{ search_limit }}'
       response_variable: playlist_search_results
@@ -442,7 +416,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_shows
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ media_id }}'
         limit: '{{ search_limit }}'
       response_variable: podcast_search_results
@@ -456,7 +430,7 @@ sequence:
     sequence:
     - action: spotifyplus.search_artists
       data:
-        entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+        entity_id: '{{ default_entity }}'
         criteria: '{{ artist if artist else media_id | replace(" Radio", "") }}'
         limit: '{{ search_limit }}'
       response_variable: radio_search_results
@@ -466,10 +440,6 @@ sequence:
   default:
   - variables:
       media_type_uri: '{{ media_type }}' 
-- action: script.play_spotify_on_favorite_source
-  data: {}
-  continue_on_error: true
-  enabled: false
 - if:
   - condition: template
     value_template: '{{ media_id.startswith("spotify:") }}'
@@ -485,13 +455,66 @@ sequence:
   action: spotifyplus.player_set_shuffle_mode
   data:
     state: '{{ shuffle }}'
-    entity_id: '{{ target_data.entity_id if target_data.entity_id != "NA" else target_data.area_id[0] if target_data.area_id != "NA" else default_player }}'
+    entity_id: '{{ default_entity }}'
     delay: 1
   continue_on_error: true
-- alias: Play media using Spotify Plus
-  action: media_player.play_media
-  data:
-    media_content_id: '{{ final_media_id }}'
-    media_content_type: '{{ final_media_type }}'
-  target: '{{ dict(target_data.items() | rejectattr(''1'', ''eq'', ''NA'')) }}'
+- choose:
+  # If a specific device is requested or default is specified
+  - conditions:
+    - condition: template
+      value_template: '{{ target_device }}'
+    sequence:
+    # Find the device in available devices
+    - variables:
+        matched_device: >-
+          {% set ns = namespace(device_id=none) %}
+          {% for device in available_devices.result.devices %}
+            {% if device.name | lower == target_device | lower %}
+              {% set ns.device_id = device.id %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.device_id }}
+    # If device found, transfer playback
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ matched_device is not none }}'
+        sequence:
+        - alias: Transfer playback to requested device
+          action: spotifyplus.player_transfer_playback
+          data:
+            entity_id: '{{ default_entity }}'
+            device_id: '{{ matched_device }}'
+            play: true
+      # If device not found, just play on whatever is active
+      default: []
+  default: []
+- alias: Play media using SpotifyPlus
+  choose:
+  - conditions:
+    - condition: template
+      value_template: '{{ final_media_type == "track" }}'
+    sequence:
+    - action: spotifyplus.player_media_play_tracks
+      data:
+        entity_id: '{{ default_entity }}'
+        uris: '{{ final_media_id }}'
+        device_id: '{{ matched_device if matched_device is defined and matched_device is not none else "*" }}'
+  - conditions:
+    - condition: template
+      value_template: '{{ final_media_type == "playlist" or final_media_type == "album" or final_media_type == "artist" or final_media_type == "show" }}'
+    sequence:
+    - action: spotifyplus.player_media_play_context
+      data:
+        entity_id: '{{ default_entity }}'
+        context_uri: '{{ final_media_id }}'
+        device_id: '{{ matched_device if matched_device is defined and matched_device is not none else "*" }}'
+  # Default fallback to standard media_player
+  default:
+  - action: media_player.play_media
+    target:
+      entity_id: '{{ default_entity }}'
+    data:
+      media_content_id: '{{ final_media_id }}'
+      media_content_type: '{{ final_media_type }}'
 - sequence: !input actions 
