@@ -46,10 +46,6 @@ blueprint:
     |`track`|The track/song requested in the voice command, will be empty in case the track
     is not relevant or when multiple tracks are requested|
 
-    |`media_description`|The description used in the voice request to describe the
-    media. For example if the voice request was "Play the best songs from Queen in
-    the living room" the value for this variable will be "the best songs from Queen"
-
     |`source_name`|The Spotify Connect source name determined by the LLM on which
     the request will be played. The variable will be undefined if there was no source
     provided in the request.|
@@ -213,18 +209,6 @@ blueprint:
 
             This is a mandatory argument and must always be provided. The system will search Spotify 
             for the closest match to what you provide here.'
-        media_description_prompt:
-          name: Media Description Prompt
-          description: The prompt that the LLM will use to provide the media description.
-          selector:
-            text:
-              multiline: true
-              multiple: false
-          default: The "media_description" key is used to describe the media which
-            will be played. This can be taken from the voice command query, but it
-            should be only the part which is relevant for the media. So if the voice
-            request is "Play the best Queen songs on the living room player" the value
-            for "media_description" should be "the best Queen songs"
         source_name_prompt:
           name: Source Name Prompt
           description: >-
@@ -308,12 +292,6 @@ fields:
       text:
     name: Media ID
     description: !input media_id_prompt
-    required: true
-  media_description:
-    selector:
-      text:
-    name: Media Description
-    description: !input media_description_prompt
     required: true
   source_name:
     selector:
