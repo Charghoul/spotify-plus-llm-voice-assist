@@ -86,25 +86,6 @@ blueprint:
           selector:
             text:
           default:
-        force_device_activation:
-          name: Force Device Activation
-          description: 'Force the device to reconnect to Spotify Connect before transferring playback.
-            This is useful if devices sometimes appear as available but actually need to be re-activated.'
-          selector:
-            boolean:
-          default: true
-        device_transfer_delay:
-          name: Device Transfer Delay
-          description: 'Time delay (in seconds) to wait after transferring playback to a device.
-            This gives Spotify time to process the change before attempting to play media.'
-          selector:
-            number:
-              min: 0
-              max: 10
-              step: 0.1
-              mode: slider
-              unit_of_measurement: seconds
-          default: 1
         search_limit:
           name: Search Limit
           description: 'The maximum number of search results to return when searching
@@ -308,8 +289,6 @@ sequence:
     version: 20250626
     default_entity: !input default_entity
     default_device: !input default_device
-    force_device_activation: !input force_device_activation
-    device_transfer_delay: !input device_transfer_delay
     search_limit: !input search_limit
     shuffle: '{{ shuffle }}'
     target_device: '{{ source_name | default(default_device, true) }}'
