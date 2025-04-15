@@ -2,7 +2,7 @@ blueprint:
   name: Voice - SpotifyPlus - Full LLM script
   source_url: https://github.com/Charghoul/spotify-plus-llm-voice-assist/blob/main/spotify-plus-llm-voice-script.yaml
   description: '
-    `v0.0.18`
+    `v0.0.19`
     
     # Creates a script which will allow voice requests for SpotifyPlus
 
@@ -24,7 +24,7 @@ blueprint:
     `This script is used to play music from Spotify based on a voice request. The tool takes the
     following arguments: media_type, artist, track, media_id, shuffle, source_name. media_id,
     media_type are always required and must always be supplied as arguments to this
-    tool. A source or area can optionally be provided in the voice request as well. 
+    tool. A source can optionally be provided in the voice request as well. 
     Use the parameters as described in the description of each parameter. 
     Use this tool whenever the user requests to play music from Spotify.`
 
@@ -49,10 +49,6 @@ blueprint:
     |`media_description`|The description used in the voice request to describe the
     media. For example if the voice request was "Play the best songs from Queen in
     the living room" the value for this variable will be "the best songs from Queen"
-
-    |`area`|The area(s) determined by the LLM in which the request will be played.
-    The variable will undefined in case there was no area information, in case it
-    is defined it will be a list of area_ids|
 
     |`source_name`|The Spotify Connect source name determined by the LLM on which
     the request will be played. The variable will be undefined if there was no source
@@ -229,22 +225,6 @@ blueprint:
             should be only the part which is relevant for the media. So if the voice
             request is "Play the best Queen songs on the living room player" the value
             for "media_description" should be "the best Queen songs"
-        area_prompt:
-          name: Area Prompt
-          description: The prompt that the LLM will use to provide the area.
-          selector:
-            text:
-              multiline: true
-              multiple: false
-          default: 'The area or areas for which the music is requested. If the request
-            does not mention a target (either an area or a source), use the area the
-            request comes from.
-
-            If the area can not be determined from the request, or the source the
-            request comes from, do not use this parameter.
-
-            Only use both the "area" parameter and the "source_name" parameter together
-            if both are specifically used in the request.'
         source_name_prompt:
           name: Source Name Prompt
           description: >-
@@ -282,8 +262,8 @@ blueprint:
       icon: mdi:wrench
       description: You can add additional actions to be performed after the Spotify play
         media action is started. Variables which can always be used
-        are media_id, media_type, track, artist. Based on the request, the variables
-        area and source_name can also be available.
+        are media_id, media_type, track, artist. Based on the request, the variable
+        source_name can also be available.
       collapsed: true
       input:
         actions:
@@ -296,7 +276,7 @@ max_exceeded: silent
 description: This script is used to play music from Spotify based on a voice request. You only need to provide 
   descriptive information like artist names, song titles, or playlist names - the script will handle searching 
   for the best match in Spotify. The media_type and media_id parameters are required. You can optionally 
-  specify a source (Spotify Connect device) or area.
+  specify a source (Spotify Connect device).
 fields:
   media_type:
     selector:
@@ -335,12 +315,6 @@ fields:
     name: Media Description
     description: !input media_description_prompt
     required: true
-  area:
-    selector:
-      area:
-        multiple: true
-    name: Area
-    description: !input area_prompt
   source_name:
     selector:
       text:
